@@ -1,0 +1,247 @@
+{
+ "generated": "2026-08-02",
+ "sample": true,
+ "sources": [
+  "google",
+  "amazon",
+  "fandango"
+ ],
+ "items": [
+  {
+   "title": "Casablanca",
+   "type": "movie",
+   "year": 1942,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=Casablanca&c=movies"
+     }
+    ],
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Casablanca&i=instant-video"
+     }
+    ]
+   },
+   "id": "casablanca",
+   "serviceCount": 2
+  },
+  {
+   "title": "Inception",
+   "type": "movie",
+   "year": 2010,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=Inception&c=movies"
+     }
+    ],
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Inception&i=instant-video"
+     }
+    ],
+    "fandango": [
+     {
+      "url": "https://athome.fandango.com/content/search?q=Inception"
+     }
+    ]
+   },
+   "id": "inception",
+   "serviceCount": 3
+  },
+  {
+   "title": "The Wizard of Oz",
+   "type": "movie",
+   "year": 1939,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=The+Wizard+of+Oz&c=movies"
+     }
+    ]
+   },
+   "id": "the-wizard-of-oz",
+   "serviceCount": 1
+  },
+  {
+   "title": "Jurassic Park",
+   "type": "movie",
+   "year": 1993,
+   "services": {
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Jurassic+Park&i=instant-video"
+     }
+    ],
+    "fandango": [
+     {
+      "url": "https://athome.fandango.com/content/search?q=Jurassic+Park"
+     }
+    ]
+   },
+   "id": "jurassic-park",
+   "serviceCount": 2
+  },
+  {
+   "title": "The Godfather",
+   "type": "movie",
+   "year": 1972,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=The+Godfather&c=movies"
+     }
+    ],
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=The+Godfather&i=instant-video"
+     }
+    ]
+   },
+   "id": "the-godfather",
+   "serviceCount": 2
+  },
+  {
+   "title": "Spirited Away",
+   "type": "movie",
+   "year": 2001,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=Spirited+Away&c=movies"
+     }
+    ]
+   },
+   "id": "spirited-away",
+   "serviceCount": 1
+  },
+  {
+   "title": "Alien",
+   "type": "movie",
+   "year": 1979,
+   "services": {
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Alien&i=instant-video"
+     }
+    ],
+    "fandango": [
+     {
+      "url": "https://athome.fandango.com/content/search?q=Alien"
+     }
+    ]
+   },
+   "id": "alien",
+   "serviceCount": 2
+  },
+  {
+   "title": "Singin' in the Rain",
+   "type": "movie",
+   "year": 1952,
+   "services": {
+    "fandango": [
+     {
+      "url": "https://athome.fandango.com/content/search?q=Singin+in+the+Rain"
+     }
+    ]
+   },
+   "id": "singin-in-the-rain",
+   "serviceCount": 1
+  },
+  {
+   "title": "Die Hard",
+   "type": "movie",
+   "year": 1988,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=Die+Hard&c=movies"
+     }
+    ],
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Die+Hard&i=instant-video"
+     }
+    ]
+   },
+   "id": "die-hard",
+   "serviceCount": 2
+  },
+  {
+   "title": "The Princess Bride",
+   "type": "movie",
+   "year": 1987,
+   "services": {
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=The+Princess+Bride&c=movies"
+     }
+    ]
+   },
+   "id": "the-princess-bride",
+   "serviceCount": 1
+  },
+  {
+   "title": "Blade Runner",
+   "type": "movie",
+   "year": 1982,
+   "services": {
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Blade+Runner&i=instant-video"
+     }
+    ]
+   },
+   "id": "blade-runner",
+   "serviceCount": 1
+  },
+  {
+   "title": "Amélie",
+   "type": "movie",
+   "year": 2001,
+   "services": {
+    "fandango": [
+     {
+      "url": "https://athome.fandango.com/content/search?q=Amelie"
+     }
+    ]
+   },
+   "id": "amelie",
+   "serviceCount": 1
+  },
+  {
+   "title": "Breaking Bad",
+   "type": "tv",
+   "year": 2008,
+   "services": {
+    "amazon": [
+     {
+      "url": "https://www.amazon.com/s?k=Breaking+Bad&i=instant-video"
+     }
+    ],
+    "google": [
+     {
+      "url": "https://play.google.com/store/search?q=Breaking+Bad&c=tvshows"
+     }
+    ]
+   },
+   "id": "breaking-bad",
+   "serviceCount": 2
+  },
+  {
+   "title": "Fargo",
+   "type": "tv",
+   "year": 2014,
+   "services": {
+    "fandango": [
+     {
+      "url": "https://athome.fandango.com/content/search?q=Fargo"
+     }
+    ]
+   },
+   "id": "fargo-tv",
+   "serviceCount": 1
+  }
+ ]
+}

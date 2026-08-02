@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream List — My Movie &amp; TV Library</title>
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#f6f5f2; --surface:#ffffff; --surface2:#efede8; --ink:#1a1a19; --ink2:#5c5b54; --ink3:#8a897f;
+  --line:#e2e0d8; --accent:#2a78d6;
+  --google:#2a78d6; --amazon:#eb6834; --fandango:#1baf7a;
+  --good:#008300; --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 14px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121211; --surface:#1a1a19; --surface2:#242422; --ink:#ffffff; --ink2:#c3c2b7; --ink3:#8a897f;
+    --line:#33322f; --accent:#3987e5;
+    --google:#3987e5; --amazon:#d95926; --fandango:#199e70;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 20px}
+.hrow{display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;flex-wrap:wrap}
+h1{font-size:19px;font-weight:700;white-space:nowrap}
+h1 .sub{color:var(--ink3);font-weight:400;font-size:13px;margin-left:6px}
+#search{flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font-size:15px;outline:none}
+#search:focus{border-color:var(--accent)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button.ctl{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font-size:13px;cursor:pointer}
+button.ctl.active{border-color:var(--accent);color:var(--accent)}
+main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
+/* chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
+.chip{padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;cursor:pointer;color:var(--ink2);user-select:none}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+/* stats */
+#stats{display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+#stats.open{display:grid}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tile .n{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.tile .l{font-size:12px;color:var(--ink2);margin-top:2px}
+.tile .bar{height:6px;border-radius:4px;background:var(--surface2);margin-top:10px;overflow:hidden;display:flex;gap:2px}
+.tile .bar i{display:block;height:100%;border-radius:4px}
+/* grid */
+#count{color:var(--ink3);font-size:13px;margin:0 0 10px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative;transition:transform .12s}
+.card:hover{transform:translateY(-2px)}
+.poster{aspect-ratio:2/3;background:var(--surface2);position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.poster img{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0}
+.poster img[src]{display:block}
+.poster .ph{color:var(--ink3);font-size:12px;text-align:center;padding:12px;font-weight:600}
+.cbody{padding:9px 10px 10px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ct{font-size:13.5px;font-weight:600;line-height:1.25}
+.cy{color:var(--ink3);font-size:11.5px}
+.svcs{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto}
+.svc{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10.5px;font-weight:700;text-decoration:none;cursor:pointer}
+.svc.google{background:var(--google)}.svc.amazon{background:var(--amazon)}.svc.fandango{background:var(--fandango)}
+.flags{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;pointer-events:none}
+.flag{pointer-events:auto;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:7px;font-size:12px;padding:3px 7px;cursor:pointer;backdrop-filter:blur(4px)}
+.flag.on{background:var(--good)}
+.flag.q.on{background:var(--accent)}
+.tvtag{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;letter-spacing:.5px;backdrop-filter:blur(4px)}
+/* list view */
+#grid.list{display:flex;flex-direction:column;gap:6px}
+#grid.list .card{flex-direction:row;align-items:center;padding:8px 12px;gap:12px}
+#grid.list .poster{width:38px;min-width:38px;aspect-ratio:2/3;border-radius:6px}
+#grid.list .poster .ph{display:none}
+#grid.list .cbody{flex-direction:row;align-items:center;gap:14px;padding:0;flex:1}
+#grid.list .ct{flex:1}
+#grid.list .flags,#grid.list .tvtag,#grid.list .cy{display:none}
+#grid.list .listmeta{display:flex;gap:10px;align-items:center}
+.listmeta{display:none}
+#grid.list .listmeta{display:flex}
+.lm{font-size:11px;color:var(--ink3);min-width:34px}
+/* modal */
+dialog{border:none;border-radius:16px;padding:0;max-width:640px;width:92vw;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dhead{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dhead h2{font-size:16px}
+.dbody{padding:16px 20px 22px;max-height:70vh;overflow:auto;font-size:14px}
+.dbody h3{font-size:13.5px;margin:14px 0 6px}
+.dbody p{color:var(--ink2);font-size:13px;margin:6px 0}
+.dbody textarea{width:100%;height:110px;border:1px solid var(--line);border-radius:9px;background:var(--surface2);color:var(--ink);padding:9px;font-family:ui-monospace,monospace;font-size:12px}
+.dbody code{background:var(--surface2);padding:1px 5px;border-radius:5px;font-size:12px}
+.bkm{display:inline-block;margin:4px 6px 4px 0;padding:7px 12px;border-radius:9px;background:var(--surface2);border:1px solid var(--line);color:var(--accent);text-decoration:none;font-size:13px;font-weight:600}
+.rowbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.x{background:none;border:none;font-size:20px;color:var(--ink3);cursor:pointer}
+/* detail modal */
+.dgrid{display:flex;gap:18px}
+.dgrid .poster{width:150px;min-width:150px;border-radius:10px}
+.watchbtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;margin:5px 0}
+.watchbtn small{font-weight:400;opacity:.85}
+.empty{color:var(--ink3);text-align:center;padding:60px 0;font-size:15px}
+footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-size:12px;border-top:1px solid var(--line)}
+@media(max-width:640px){ #grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))} .dgrid{flex-direction:column} }
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <h1>🎬 Stream List<span class="sub" id="genDate"></span></h1>
+    <input id="search" type="search" placeholder="Search your library…  ( / )" autocomplete="off">
+    <div class="controls">
+      <select id="sort">
+        <option value="title">Sort: Title</option>
+        <option value="year">Sort: Year</option>
+        <option value="services">Sort: # Services</option>
+        <option value="random">Sort: Shuffle</option>
+      </select>
+      <button class="ctl" id="viewToggle" title="Toggle grid/list">☰ List</button>
+      <button class="ctl" id="statsToggle">📊 Stats</button>
+      <button class="ctl" id="updateBtn">⟳ Update</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="stats"></div>
+  <div id="sampleBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 14px;margin:0 0 14px;color:var(--ink2);font-size:13px">
+    <span>Showing sample data — sync your own library via ⟳ Update</span>
+    <button class="ctl" id="clearSampleBtn">Clear sample</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <p id="count"></p>
+  <div id="grid"></div>
+  <div class="empty" id="empty" style="display:none">Nothing matches — you don't own that one yet 🍿</div>
+</main>
+<footer>
+  Library data scanned from Google Play, Prime Video &amp; Fandango at Home. Posters via iTunes Search (fetched on view, cached locally).
+  Watched/queue flags live in this browser. Use <b>⟳ Update</b> to refresh your library.
+</footer>
+
+<dialog id="detail"></dialog>
+
+<dialog id="update">
+  <div class="dhead"><h2>Keep your library up to date</h2><button class="x" onclick="U.close()">✕</button></div>
+  <div class="dbody">
+    <p><b>Option A — ask Claude.</b> Open a Cowork session and say <i>“re-scan my stream-list libraries.”</i> Claude will crawl all three sites and rebuild <code>library.json</code>.</p>
+    <h3>Option B — bookmarklets (self-service)</h3>
+    <p>Drag each button to your bookmarks bar. Open the matching library page, sign in, scroll to the bottom so everything loads, then click the bookmarklet — it copies your list as JSON. Paste below and hit Merge.</p>
+    <p>
+      <a class="bkm" id="bkGoogle" href="#">📥 Google Play</a>
+      <a class="bkm" id="bkAmazon" href="#">📥 Prime Video</a>
+      <a class="bkm" id="bkFandango" href="#">📥 Fandango</a>
+    </p>
+    <p style="font-size:12px">Pages: <a href="https://play.google.com/movies" target="_blank">Google library</a> ·
+      <a href="https://www.amazon.com/gp/video/mystuff/library/movies" target="_blank">Amazon movies</a> /
+      <a href="https://www.amazon.com/gp/video/mystuff/library/tv" target="_blank">TV</a> ·
+      <a href="https://athome.fandango.com/content/browse/mymovies" target="_blank">Fandango movies</a></p>
+    <textarea id="pasteBox" placeholder='Paste bookmarklet JSON here…'></textarea>
+    <div class="rowbtns">
+      <button class="ctl" onclick="U.merge()">Merge into library</button>
+      <button class="ctl" onclick="document.getElementById('importFile').click()">Import</button>
+      <button class="ctl" onclick="U.exportLib()">Export library.json</button>
+      <button class="ctl" onclick="U.exportBackup()">Export backup</button>
+      <button class="ctl" onclick="U.resetFlags()">Reset flags</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+    <p id="mergeMsg" style="color:var(--good)"></p>
+    <p style="font-size:12px">Import accepts three kinds of files: a <b>backup</b> (from Export backup — replaces your whole library, flags, posters and TMDB matches; this is what you'd keep in sync via OneDrive/Google Drive), a <code>library.json</code> from the Chrome extension pipeline (merged straight in, no rebuild needed), or a single-service bookmarklet export.</p>
+    <h3>Optional: TMDB posters</h3>
+    <p>Posters load from iTunes automatically. For better matches add a free <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB API key</a>:</p>
+    <input id="tmdbKey" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--ink)" placeholder="TMDB API key (v3)">
+  </div>
+</dialog>
+
+<script id="library-data" type="application/json">{"generated":"2026-08-02","sample":true,"sources":["google","amazon","fandango"],"items":[{"title":"Casablanca","type":"movie","year":1942,"services":{"google":[{"url":"https://play.google.com/store/search?q=Casablanca&c=movies"}],"amazon":[{"url":"https://www.amazon.com/s?k=Casablanca&i=instant-video"}]},"id":"casablanca","serviceCount":2},{"title":"Inception","type":"movie","year":2010,"services":{"google":[{"url":"https://play.google.com/store/search?q=Inception&c=movies"}],"amazon":[{"url":"https://www.amazon.com/s?k=Inception&i=instant-video"}],"fandango":[{"url":"https://athome.fandango.com/content/search?q=Inception"}]},"id":"inception","serviceCount":3},{"title":"The Wizard of Oz","type":"movie","year":1939,"services":{"google":[{"url":"https://play.google.com/store/search?q=The+Wizard+of+Oz&c=movies"}]},"id":"the-wizard-of-oz","serviceCount":1},{"title":"Jurassic Park","type":"movie","year":1993,"services":{"amazon":[{"url":"https://www.amazon.com/s?k=Jurassic+Park&i=instant-video"}],"fandango":[{"url":"https://athome.fandango.com/content/search?q=Jurassic+Park"}]},"id":"jurassic-park","serviceCount":2},{"title":"The Godfather","type":"movie","year":1972,"services":{"google":[{"url":"https://play.google.com/store/search?q=The+Godfather&c=movies"}],"amazon":[{"url":"https://www.amazon.com/s?k=The+Godfather&i=instant-video"}]},"id":"the-godfather","serviceCount":2},{"title":"Spirited Away","type":"movie","year":2001,"services":{"google":[{"url":"https://play.google.com/store/search?q=Spirited+Away&c=movies"}]},"id":"spirited-away","serviceCount":1},{"title":"Alien","type":"movie","year":1979,"services":{"amazon":[{"url":"https://www.amazon.com/s?k=Alien&i=instant-video"}],"fandango":[{"url":"https://athome.fandango.com/content/search?q=Alien"}]},"id":"alien","serviceCount":2},{"title":"Singin' in the Rain","type":"movie","year":1952,"services":{"fandango":[{"url":"https://athome.fandango.com/content/search?q=Singin+in+the+Rain"}]},"id":"singin-in-the-rain","serviceCount":1},{"title":"Die Hard","type":"movie","year":1988,"services":{"google":[{"url":"https://play.google.com/store/search?q=Die+Hard&c=movies"}],"amazon":[{"url":"https://www.amazon.com/s?k=Die+Hard&i=instant-video"}]},"id":"die-hard","serviceCount":2},{"title":"The Princess Bride","type":"movie","year":1987,"services":{"google":[{"url":"https://play.google.com/store/search?q=The+Princess+Bride&c=movies"}]},"id":"the-princess-bride","serviceCount":1},{"title":"Blade Runner","type":"movie","year":1982,"services":{"amazon":[{"url":"https://www.amazon.com/s?k=Blade+Runner&i=instant-video"}]},"id":"blade-runner","serviceCount":1},{"title":"Am\u00e9lie","type":"movie","year":2001,"services":{"fandango":[{"url":"https://athome.fandango.com/content/search?q=Amelie"}]},"id":"amelie","serviceCount":1},{"title":"Breaking Bad","type":"tv","year":2008,"services":{"amazon":[{"url":"https://www.amazon.com/s?k=Breaking+Bad&i=instant-video"}],"google":[{"url":"https://play.google.com/store/search?q=Breaking+Bad&c=tvshows"}]},"id":"breaking-bad","serviceCount":2},{"title":"Fargo","type":"tv","year":2014,"services":{"fandango":[{"url":"https://athome.fandango.com/content/search?q=Fargo"}]},"id":"fargo-tv","serviceCount":1}]}</script>
+<script>
+/* Shared merge logic (extension/lib/merge.js), inlined by tools/build.py */
+// Shared title-normalization + merge logic for Stream List.
+// Single source of truth: inlined into index.html by tools/build.py
+// (replacing __SHARED_MERGE__ in index.template.html) and loaded
+// directly by the Chrome extension popup.
+'use strict';
+const SLMerge = (() => {
+  // Normalize a title for cross-service matching: drop "(1999)" years,
+  // edition suffixes, punctuation, and trailing articles.
+  function norm(t){
+    return t.toLowerCase()
+      .replace(/\s*\((\d{4})\)\s*/g, ' ')
+      .replace(/\b(unrated|extended( (edition|cut|version))?|theatrical( (edition|cut|version))?|director'?s cut|deluxe edition|ultimate edition|special edition|final cut|with bonus content|uncut( version)?)\b/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').trim()
+      .replace(/\s+(the|a|an)$/, '')
+      .replace(/\s+/g, ' ');
+  }
+  // Dedup key: normalized title, with TV kept separate from movies.
+  function keyOf(title, tv){ return norm(title) + (tv ? ':tv' : ''); }
+  function parseYear(title){
+    const m = title.match(/\((\d{4})\)/);
+    return m ? +m[1] : null;
+  }
+  // Build a fresh library entry from a harvested/bookmarklet item.
+  function makeEntry(it, service){
+    const tv = !!it.tv;
+    const key = keyOf(it.title, tv);
+    return {
+      id: key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      title: it.title.replace(/\s*\(\d{4}\)\s*/, '').trim(),
+      type: tv ? 'tv' : 'movie',
+      year: parseYear(it.title),
+      services: {[service]: [{url: it.url}]},
+      serviceCount: 1,
+    };
+  }
+  // Merge one payload {service, items:[{title,url,tv}]} into byNorm
+  // (keyOf -> entry). New titles become entries; known titles gain a
+  // service link. Returns {added:[entry], linked:[entry]}.
+  function mergeInto(byNorm, payload){
+    const added = [], linked = [];
+    for (const it of payload.items || []){
+      if (!it || !it.title || !it.url) continue;
+      const key = keyOf(it.title, !!it.tv);
+      const ex = byNorm[key];
+      if (ex){
+        if (!ex.services[payload.service]){
+          ex.services[payload.service] = [{url: it.url}];
+          ex.serviceCount = Object.keys(ex.services).length;
+          linked.push(ex);
+        }
+      } else {
+        const ne = makeEntry(it, payload.service);
+        byNorm[key] = ne;
+        added.push(ne);
+      }
+    }
+    return {added, linked};
+  }
+  // Build a whole library from several payloads (extension "Sync all").
+  function buildLibrary(payloads){
+    const byNorm = {}, items = [];
+    for (const p of payloads) items.push(...mergeInto(byNorm, p).added);
+    items.sort((a, b) => a.title.localeCompare(b.title));
+    return items;
+  }
+  // Merge an items-array (already in library entry shape: {id, title, type,
+  // year, services, serviceCount}) into another. Matches by id first, then
+  // by keyOf(title, type==='tv'). Unions service links (by url) on match,
+  // recomputes serviceCount. Does not mutate its inputs.
+  // Returns {items, added, linked} (added/linked are counts).
+  function mergeLibraries(current, incoming){
+    const items = (current || []).map(e => ({...e, services: {...e.services}}));
+    const byId = {}, byKey = {};
+    for (const e of items){ if (e.id) byId[e.id] = e; byKey[keyOf(e.title, e.type === 'tv')] = e; }
+    let added = 0, linked = 0;
+    for (const inc of incoming || []){
+      if (!inc || !inc.title) continue;
+      // Match by id only when present, else by normalized title — an id-less
+      // (or duplicate-undefined-id) incoming item must not collide on byId.
+      const ex = (inc.id && byId[inc.id]) || byKey[keyOf(inc.title, inc.type === 'tv')];
+      if (ex){
+        let didLink = false;
+        for (const [svc, links] of Object.entries(inc.services || {})){
+          const existing = ex.services[svc] || (ex.services[svc] = []);
+          for (const l of links){
+            if (!existing.some(x => x.url === l.url)){ existing.push({...l}); didLink = true; }
+          }
+        }
+        ex.serviceCount = Object.keys(ex.services).length;
+        if (didLink) linked++;
+      } else {
+        const ne = {...inc, services: {}};
+        for (const [svc, links] of Object.entries(inc.services || {})) ne.services[svc] = links.map(l => ({...l}));
+        ne.serviceCount = Object.keys(ne.services).length;
+        if (!ne.id) ne.id = keyOf(ne.title, ne.type === 'tv').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
+        items.push(ne);
+        byId[ne.id] = ne; byKey[keyOf(ne.title, ne.type === 'tv')] = ne;
+        added++;
+      }
+    }
+    return {items, added, linked};
+  }
+  return {norm, keyOf, parseYear, makeEntry, mergeInto, buildLibrary, mergeLibraries};
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SLMerge;
+
+</script>
+<script id="collect-src" type="text/plain">
+// Shared DOM-scrape logic for Stream List harvesters and bookmarklets.
+// Single source of truth: inlined into index.html by tools/build.py
+// (replacing the shared-collect placeholder in index.template.html) and
+// loaded by the Chrome extension harvesters (extension/harvest/*.js).
+// Pure DOM scan of the CURRENT page only — no chrome.* APIs, no async,
+// no scrolling. Callers own the scroll/retry loop and dedupe.
+'use strict';
+const SLCollect = (() => {
+  // Google Play library page: one scan of visible anchors.
+  function google(){
+    const out = [];
+    document.querySelectorAll('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
+      const u = new URL(a.href, location.origin);
+      let t = a.textContent.trim()
+        .replace(/(\d\.\d)?star.*$/, '')
+        .replace(/\$\d+\.\d\d.*$/, '')
+        .trim();
+      if (!t && a.getAttribute('aria-label')) t = a.getAttribute('aria-label').trim();
+      if (!t) return;
+      out.push({key: u.pathname, title: t, url: u.origin + u.pathname, tv: u.pathname.includes('/tv/')});
+    });
+    return out;
+  }
+
+  // Prime Video library page (movies or tv, per isTv).
+  function amazon(isTv){
+    const out = [];
+    document.querySelectorAll('a[href*="/gp/video/detail/"]').forEach(a => {
+      const m = a.href.match(/\/gp\/video\/detail\/([A-Z0-9]+)/);
+      if (!m) return;
+      const t = (a.getAttribute('aria-label') || a.textContent).trim();
+      if (!t) return;
+      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv});
+    });
+    return out;
+  }
+
+  // Fandango at Home "My Movies" page.
+  function fandango(){
+    const out = [];
+    document.querySelectorAll('a[href*="/content/browse/details/"]').forEach(a => {
+      const m = (a.getAttribute('href') || '').match(/\/content\/browse\/details\/([^/]+)\/(\d+)/);
+      if (!m) return;
+      const img = a.querySelector('img');
+      const t = (img && img.alt || a.getAttribute('aria-label') || '').trim()
+        || m[1].replace(/-/g, ' ').trim();
+      out.push({
+        key: m[2],
+        title: t,
+        url: 'https://athome.fandango.com/content/browse/details/' + m[1] + '/' + m[2],
+        tv: false,
+      });
+    });
+    return out;
+  }
+
+  return {google, amazon, fandango};
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SLCollect;
+
+</script>
+<script>
+'use strict';
+const DATA = JSON.parse(document.getElementById('library-data').textContent);
+const SVC = {
+  google:   {name:'Google Play',   letter:'G', cls:'google',   color:'var(--google)'},
+  amazon:   {name:'Prime Video',   letter:'P', cls:'amazon',   color:'var(--amazon)'},
+  fandango: {name:'Fandango at Home', letter:'F', cls:'fandango', color:'var(--fandango)'},
+};
+const LS = {
+  get(k,d){ try{ return JSON.parse(localStorage.getItem('sl_'+k)) ?? d }catch(e){ return d } },
+  set(k,v){ try{ localStorage.setItem('sl_'+k, JSON.stringify(v)) }catch(e){} },
+};
+let flags = LS.get('flags', {});           // id -> {w:1 watched, q:1 queue}
+let posters = LS.get('posters', {});       // id -> url ('' = not found)
+let meta = LS.get('meta', {});             // id -> {year, genre}
+
+// localStorage IS the database: sl_library holds the full items array.
+let library = LS.get('library', null);
+let sample = LS.get('sample', false);
+if (library === null){
+  library = DATA.items.map(e => ({...e, services:{...e.services}}));
+  sample = DATA.sample === true;
+  const legacyExtra = LS.get('extra', null);
+  if (legacyExtra && legacyExtra.length){
+    library = SLMerge.mergeLibraries(library, legacyExtra).items;
+  }
+  LS.set('library', library); LS.set('sample', sample);
+  try{ localStorage.removeItem('sl_extra'); }catch(e){}
+}
+document.getElementById('genDate').textContent = 'updated ' + (LS.get('gen', DATA.generated));
+
+let items = [];
+function rebuild(){
+  items = library.map(e => ({...e, services:{...e.services}}));
+}
+rebuild();
+
+const state = { q:'', svc:null, type:null, flag:null, multi:false, sort:'title', view: LS.get('view','grid') };
+
+// ---------- chips ----------
+const chipsEl = document.getElementById('chips');
+function chips(){
+  const c = [];
+  c.push({k:'type', v:null, label:'All'});
+  c.push({k:'type', v:'movie', label:'Movies'});
+  c.push({k:'type', v:'tv', label:'TV'});
+  for (const [s,d] of Object.entries(SVC)) c.push({k:'svc', v:s, label:d.name, dot:d.color});
+  c.push({k:'multi', v:true, label:'Owned 2+ places'});
+  c.push({k:'flag', v:'q', label:'Watch next'});
+  c.push({k:'flag', v:'w', label:'Watched'});
+  c.push({k:'flag', v:'uw', label:'Unwatched'});
+  chipsEl.innerHTML = '';
+  for (const ch of c){
+    const b = document.createElement('span');
+    b.className = 'chip';
+    const active = ch.k==='multi' ? state.multi===true && ch.v===true
+      : state[ch.k]===ch.v && !(ch.k==='type'&&ch.v===null&&(state.type!==null));
+    if (ch.k==='type'&&ch.v===null) { if(state.type===null&&!state.svc&&!state.flag&&!state.multi) b.classList.add('active'); }
+    else if (active) b.classList.add('active');
+    b.innerHTML = (ch.dot?`<span class="dot" style="background:${ch.dot}"></span>`:'') + ch.label;
+    b.onclick = () => {
+      if (ch.k==='type'&&ch.v===null){ state.type=null; state.svc=null; state.flag=null; state.multi=false; }
+      else if (ch.k==='multi') state.multi = !state.multi;
+      else state[ch.k] = state[ch.k]===ch.v ? null : ch.v;
+      render();
+    };
+    chipsEl.appendChild(b);
+  }
+}
+
+// ---------- untrusted-data guards ----------
+// Titles/urls can arrive from imported files, bookmarklets, or harvested
+// store pages, so escape before innerHTML and allowlist link schemes.
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function safeUrl(u){ try{ const p = new URL(u, location.href); return (p.protocol==='http:'||p.protocol==='https:') ? p.href : '#'; }catch(e){ return '#'; } }
+
+// ---------- filtering ----------
+function normq(s){ return s.toLowerCase().replace(/[^a-z0-9 ]+/g,'') }
+function visible(){
+  let out = items.filter(e => {
+    if (state.q && !normq(e.title).includes(normq(state.q))) return false;
+    if (state.svc && !e.services[state.svc]) return false;
+    if (state.type && e.type!==state.type) return false;
+    if (state.multi && e.serviceCount<2) return false;
+    const f = flags[e.id]||{};
+    if (state.flag==='w' && !f.w) return false;
+    if (state.flag==='uw' && f.w) return false;
+    if (state.flag==='q' && !f.q) return false;
+    return true;
+  });
+  const y = e => meta[e.id]?.year || e.year || 0;
+  if (state.sort==='title') out.sort((a,b)=>a.title.localeCompare(b.title));
+  if (state.sort==='year') out.sort((a,b)=> y(b)-y(a) || a.title.localeCompare(b.title));
+  if (state.sort==='services') out.sort((a,b)=> b.serviceCount-a.serviceCount || a.title.localeCompare(b.title));
+  if (state.sort==='random') { for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];} }
+  return out;
+}
+
+// ---------- stats ----------
+function stats(){
+  const el = document.getElementById('stats');
+  const per = {google:0, amazon:0, fandango:0};
+  let movies=0, tv=0, multi=0, watched=0;
+  for (const e of items){
+    for (const s in e.services) per[s] = (per[s]||0)+1;
+    if (e.type==='movie') movies++; else tv++;
+    if (e.serviceCount>1) multi++;
+    if ((flags[e.id]||{}).w) watched++;
+  }
+  const total = items.length;
+  const bar = Object.entries(per).map(([s,n]) =>
+    `<i style="width:${(n/(per.google+per.amazon+per.fandango)*100).toFixed(1)}%;background:${SVC[s].color}" title="${SVC[s].name}: ${n}"></i>`).join('');
+  el.innerHTML = `
+    <div class="tile"><div class="n">${total}</div><div class="l">titles owned</div>
+      <div class="bar">${bar}</div></div>
+    <div class="tile"><div class="n">${movies} <span style="font-size:14px;color:var(--ink3)">/ ${tv}</span></div><div class="l">movies / TV</div></div>
+    <div class="tile"><div class="n">${multi}</div><div class="l">owned on 2+ services</div></div>
+    <div class="tile"><div class="n">${per.google}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--google)"></span> Google Play</div></div>
+    <div class="tile"><div class="n">${per.amazon}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amazon)"></span> Prime Video</div></div>
+    <div class="tile"><div class="n">${per.fandango}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--fandango)"></span> Fandango</div></div>
+    <div class="tile"><div class="n">${watched}</div><div class="l">marked watched</div></div>`;
+}
+
+// ---------- posters ----------
+const pQueue = []; let pBusy = false;
+function wantPoster(e, img){
+  if (posters[e.id] !== undefined){ if (posters[e.id]) img.src = posters[e.id]; return; }
+  pQueue.push([e, img]); pump();
+}
+async function pump(){
+  if (pBusy) return; pBusy = true;
+  while (pQueue.length){
+    const [e, img] = pQueue.shift();
+    if (posters[e.id] !== undefined){ if(posters[e.id]) img.src = posters[e.id]; continue; }
+    try {
+      const key = LS.get('tmdb', '');
+      let url = '', year = null, genre = null;
+      if (key){
+        const kind = e.type==='tv' ? 'tv' : 'movie';
+        const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(e.title)}${e.year?`&year=${e.year}`:''}`);
+        const j = await r.json();
+        const hit = (j.results||[])[0];
+        if (hit){ url = hit.poster_path ? 'https://image.tmdb.org/t/p/w342'+hit.poster_path : '';
+          year = (hit.release_date||hit.first_air_date||'').slice(0,4)||null; }
+      } else {
+        const kind = e.type==='tv' ? 'tvShow' : 'movie';
+        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(e.title)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
+        const j = await r.json();
+        let hits = j.results||[];
+        const tnorm = normq(e.title);
+        let hit = hits.find(h => normq(h.trackName||h.collectionName||'')===tnorm) || hits[0];
+        if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
+        if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
+          year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
+      }
+      posters[e.id] = url || '';
+      if (year || genre){ meta[e.id] = {...(meta[e.id]||{}), ...(year?{year:+year}:{}), ...(genre?{genre}:{})}; }
+      if (url) img.src = url;
+      if (pQueue.length % 10 === 0){ LS.set('posters', posters); LS.set('meta', meta); }
+      await new Promise(r=>setTimeout(r, 260)); // be polite to the API
+    } catch(err){ /* offline or blocked: try again next session */ }
+  }
+  LS.set('posters', posters); LS.set('meta', meta);
+  pBusy = false;
+}
+
+// ---------- render ----------
+const grid = document.getElementById('grid');
+const io = new IntersectionObserver(en => {
+  for (const x of en) if (x.isIntersecting){ io.unobserve(x.target); const e = items.find(i=>i.id===x.target.dataset.id); if (e) wantPoster(e, x.target.querySelector('img')); }
+}, {rootMargin:'400px'});
+
+function svcLinks(e, big){
+  return Object.entries(e.services).map(([s, links]) => {
+    const d = SVC[s];
+    return links.map(l => big
+      ? `<a class="watchbtn" style="background:${d.color}" href="${safeUrl(l.url)}" target="_blank" rel="noopener">▶ Watch on ${d.name}${l.note?` <small>(${esc(l.note)})</small>`:''}</a>`
+      : `<a class="svc ${d.cls}" href="${safeUrl(l.url)}" target="_blank" rel="noopener" title="${esc(d.name)}${l.note?' — '+esc(l.note):''}">${d.letter}</a>`
+    ).join('');
+  }).join('');
+}
+function render(){
+  document.getElementById('sampleBanner').style.display = sample ? 'flex' : 'none';
+  chips(); stats();
+  const list = visible();
+  document.getElementById('count').textContent = `${list.length} of ${items.length} titles`;
+  document.getElementById('empty').style.display = list.length ? 'none':'block';
+  grid.className = state.view==='list' ? 'list' : '';
+  document.getElementById('viewToggle').textContent = state.view==='list' ? '▦ Grid' : '☰ List';
+  grid.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const e of list){
+    const f = flags[e.id]||{};
+    const y = meta[e.id]?.year || e.year;
+    const card = document.createElement('div');
+    card.className = 'card'; card.dataset.id = e.id;
+    card.innerHTML = `
+      <div class="poster"><img alt="" loading="lazy" onerror="this.remove()"><div class="ph">${esc(e.title)}</div>
+        <div class="flags">
+          <button class="flag q ${f.q?'on':''}" title="Watch next">＋</button>
+          <button class="flag w ${f.w?'on':''}" title="Watched">✓</button>
+        </div>
+        ${e.type==='tv'?'<span class="tvtag">TV</span>':''}
+      </div>
+      <div class="cbody">
+        <div class="ct">${esc(e.title)}</div>
+        <div class="cy">${esc(y||'')}${meta[e.id]?.genre?` · ${esc(meta[e.id].genre)}`:''}</div>
+        <div class="listmeta"><span class="lm">${y||''}</span><span class="lm">${e.type==='tv'?'TV':'Movie'}</span></div>
+        <div class="svcs">${svcLinks(e)}</div>
+      </div>`;
+    const img = card.querySelector('img');
+    if (posters[e.id]) img.src = posters[e.id];
+    card.querySelector('.poster').addEventListener('click', ev => { if (ev.target.closest('.flag')) return; detail(e); });
+    card.querySelector('.flag.w').onclick = () => { f.w = f.w?0:1; flags[e.id]=f; LS.set('flags',flags); render(); };
+    card.querySelector('.flag.q').onclick = () => { f.q = f.q?0:1; flags[e.id]=f; LS.set('flags',flags); render(); };
+    frag.appendChild(card);
+    if (posters[e.id]===undefined) io.observe(card);
+  }
+  grid.appendChild(frag);
+}
+
+// ---------- detail ----------
+const dlg = document.getElementById('detail');
+function detail(e){
+  const f = flags[e.id]||{};
+  const y = meta[e.id]?.year || e.year;
+  dlg.innerHTML = `
+    <div class="dhead"><h2>${esc(e.title)}${y?` <span style="color:var(--ink3);font-weight:400">(${esc(y)})</span>`:''}</h2>
+      <button class="x" onclick="document.getElementById('detail').close()">✕</button></div>
+    <div class="dbody"><div class="dgrid">
+      <div class="poster">${posters[e.id]?`<img src="${safeUrl(posters[e.id])}" alt="">`:`<div class="ph">${esc(e.title)}</div>`}</div>
+      <div style="flex:1">
+        <p>${e.type==='tv'?'TV series':'Movie'}${meta[e.id]?.genre?` · ${esc(meta[e.id].genre)}`:''} · owned on ${e.serviceCount} service${e.serviceCount>1?'s':''}</p>
+        ${svcLinks(e, true)}
+        <div class="rowbtns">
+          <button class="ctl" id="dW">${f.w?'✓ Watched':'Mark watched'}</button>
+          <button class="ctl" id="dQ">${f.q?'★ In watch-next':'Add to watch next'}</button>
+        </div>
+      </div>
+    </div></div>`;
+  dlg.querySelector('#dW').onclick = ()=>{ f.w=f.w?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
+  dlg.querySelector('#dQ').onclick = ()=>{ f.q=f.q?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
+  dlg.showModal();
+}
+
+// ---------- update / import ----------
+const upd = document.getElementById('update');
+// Returns true if the caller may proceed with its merge. On the sample
+// library, a confirmed "replace" wipes it and clears the sample flag; a
+// cancel aborts entirely (sample data + banner stay put) so the user keeps
+// the "Clear sample" escape hatch instead of silently welding samples in.
+function replaceSampleIfNeeded(){
+  if (!sample) return true;
+  if (!confirm('Replace the sample library with your data?')) return false;
+  library = []; sample = false; LS.set('sample', sample);
+  return true;
+}
+const U = {
+  open(){ document.getElementById('tmdbKey').value = LS.get('tmdb',''); upd.showModal(); },
+  close(){ upd.close(); },
+  mergeBookmarklet(payload){
+    if (!replaceSampleIfNeeded()) return;
+    const byNorm = {}; for (const e of library) byNorm[SLMerge.keyOf(e.title, e.type==='tv')] = e;
+    const res = SLMerge.mergeInto(byNorm, payload);
+    library.push(...res.added);
+    LS.set('library', library); LS.set('gen', new Date().toISOString().slice(0,10));
+    rebuild(); render();
+    document.getElementById('mergeMsg').textContent = `Merged: ${res.added.length} new title${res.added.length!==1?'s':''}, ${res.linked.length} new service link${res.linked.length!==1?'s':''}.`;
+  },
+  merge(){
+    let j; try{ j = JSON.parse(document.getElementById('pasteBox').value) }catch(e){ alert('That is not valid JSON'); return }
+    if (typeof j.service !== 'string' || !Array.isArray(j.items)){ alert('Expected {service, items} from a bookmarklet'); return }
+    U.mergeBookmarklet(j);
+  },
+  importData(j){
+    if (!j || typeof j !== 'object'){ alert('Unrecognized file — expected a Stream List backup, library.json, or bookmarklet export.'); return }
+    if (j.streamList === 1 && j.library){
+      if (!confirm('Replace your entire library with this backup?')) return;
+      library = j.library; LS.set('library', library);
+      flags = j.flags||{}; LS.set('flags', flags);
+      posters = j.posters||{}; LS.set('posters', posters);
+      meta = j.meta||{}; LS.set('meta', meta);
+      sample = false; LS.set('sample', sample);
+      rebuild(); render();
+      document.getElementById('mergeMsg').textContent = 'Backup restored.';
+      return;
+    }
+    if (typeof j.service === 'string' && Array.isArray(j.items)){
+      U.mergeBookmarklet(j);
+      return;
+    }
+    if (Array.isArray(j.items)){
+      if (!replaceSampleIfNeeded()) return;
+      const res = SLMerge.mergeLibraries(library, j.items);
+      library = res.items; LS.set('library', library);
+      rebuild(); render();
+      document.getElementById('mergeMsg').textContent = `Merged: ${res.added} new title${res.added!==1?'s':''}, ${res.linked} title${res.linked!==1?'s':''} with new service link${res.linked!==1?'s':''}.`;
+      return;
+    }
+    alert('Unrecognized file — expected a Stream List backup, library.json, or bookmarklet export.');
+  },
+  exportLib(){
+    const out = {generated: new Date().toISOString().slice(0,10), sources: ['google','amazon','fandango'], items};
+    U.dl('library.json', JSON.stringify(out, null, 1));
+  },
+  exportBackup(){
+    const out = {streamList:1, exported: new Date().toISOString().slice(0,10), library, flags, posters, meta};
+    U.dl('stream-list-backup.json', JSON.stringify(out, null, 1));
+  },
+  resetFlags(){ if(confirm('Clear all watched/watch-next flags?')){ flags={}; LS.set('flags',flags); render(); } },
+  dl(name, text){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+    a.download = name; a.click();
+  },
+};
+document.getElementById('updateBtn').onclick = U.open;
+document.getElementById('tmdbKey').addEventListener('change', ev => { LS.set('tmdb', ev.target.value.trim()); posters={}; LS.set('posters',posters); });
+document.getElementById('importFile').addEventListener('change', ev => {
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let j; try{ j = JSON.parse(reader.result) }catch(e){ alert('That is not valid JSON'); ev.target.value=''; return }
+    U.importData(j);
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
+});
+document.getElementById('clearSampleBtn').onclick = () => {
+  if (!confirm('Clear the sample library?')) return;
+  library = []; LS.set('library', library);
+  sample = false; LS.set('sample', sample);
+  rebuild(); render();
+};
+
+// bookmarklets
+function bkm(code){ return 'javascript:' + encodeURIComponent(`(()=>{${code}})()`); }
+// Bookmarklets run on the store page, so they can't see this page's
+// SLCollect — embed the collector source (extension/lib/collect.js,
+// inlined by tools/build.py) ahead of each bookmarklet's own logic.
+const COLLECT_SRC = document.getElementById('collect-src').textContent;
+document.getElementById('bkGoogle').href = bkm(COLLECT_SRC + `
+const out=[],seen=new Set();
+SLCollect.google().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
+const j=JSON.stringify({service:'google',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
+document.getElementById('bkAmazon').href = bkm(COLLECT_SRC + `
+const out=[],seen=new Set();
+SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
+const j=JSON.stringify({service:'amazon',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
+document.getElementById('bkFandango').href = bkm(COLLECT_SRC + `
+const out=[],seen=new Set();
+SLCollect.fandango().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
+const j=JSON.stringify({service:'fandango',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles (scroll the whole page first!) — paste into Stream List'));`);
+
+// ---------- wiring ----------
+document.getElementById('search').addEventListener('input', ev => { state.q = ev.target.value; render(); });
+document.getElementById('sort').addEventListener('change', ev => { state.sort = ev.target.value; render(); });
+document.getElementById('viewToggle').onclick = () => { state.view = state.view==='list'?'grid':'list'; LS.set('view', state.view); render(); };
+document.getElementById('statsToggle').onclick = () => document.getElementById('stats').classList.toggle('open');
+document.addEventListener('keydown', ev => {
+  if (ev.key==='/' && document.activeElement!==document.getElementById('search')){ ev.preventDefault(); document.getElementById('search').focus(); }
+  if (ev.key==='Escape'){ document.getElementById('search').value=''; state.q=''; render(); }
+});
+render();
+</script>
+</body>
+</html>

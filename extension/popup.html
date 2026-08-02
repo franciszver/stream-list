@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+body{font-family:system-ui,sans-serif;width:320px;margin:0;padding:14px;background:#f6f5f2;color:#1a1a19}
+@media(prefers-color-scheme:dark){body{background:#121211;color:#fff}.svc{background:#1a1a19!important;border-color:#33322f!important}button{background:#242422;color:#fff;border-color:#33322f}}
+h1{font-size:15px;margin:0 0 10px}
+button{padding:7px 12px;border:1px solid #e2e0d8;border-radius:8px;background:#fff;cursor:pointer;font-size:13px}
+button:disabled{opacity:.5;cursor:default}
+#syncAll{width:100%;font-weight:600;margin-bottom:10px}
+.svc{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e0d8;border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px}
+.svc .dot{width:9px;height:9px;border-radius:50%}
+.svc .name{flex:1}
+.svc .st{color:#8a897f;font-size:12px}
+.svc button{padding:3px 8px;font-size:11px}
+.row{display:flex;gap:8px;margin-top:10px}
+.row button{flex:1}
+#msg{font-size:12px;color:#008300;margin-top:8px;min-height:15px}
+.hint{font-size:11px;color:#8a897f;margin-top:8px;line-height:1.4}
+</style>
+</head>
+<body>
+<h1>🎬 Stream List Sync</h1>
+<button id="syncAll">⟳ Sync all libraries</button>
+<div id="services"></div>
+<div class="row">
+  <button id="download" disabled>⬇ library.json</button>
+</div>
+<div id="msg"></div>
+<p class="hint">Sync opens each store's library page in a tab. If a service says
+<b>login needed</b>, sign in on that tab, then sync again. Import the downloaded
+<code>library.json</code> via the app's ⟳ Update → Import — no rebuild needed. “Copy” gives per-service JSON for the app's
+⟳ Update → Merge box (bookmarklet format).</p>
+<script src="lib/merge.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

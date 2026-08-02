@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Stream List Sync",
+  "version": "1.0.0",
+  "description": "Harvests your Google Play, Prime Video, and Fandango at Home libraries and merges them into Stream List's library.json.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Stream List Sync"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["scripting", "tabs", "storage"],
+  "host_permissions": [
+    "https://play.google.com/*",
+    "https://www.amazon.com/*",
+    "https://athome.fandango.com/*"
+  ]
+}
