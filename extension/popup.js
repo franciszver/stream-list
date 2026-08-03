@@ -44,15 +44,31 @@ async function render(){
 
 function say(t){ msgEl.textContent = t; }
 
-document.getElementById('syncAll').addEventListener('click', () => {
-  chrome.runtime.sendMessage({cmd: 'sync'}, r => say(r?.busy ? 'A sync is already running…' : 'Syncing — tabs will open for each store.'));
-});
+// First click warns (sync takes over the browser: opens store tabs,
+// focuses them, auto-scrolls); second click actually starts.
+const syncAllBtn = document.getElementById('syncAll');
+let armed = null;
+function requestSync(service){
+  const key = service || 'all';
+  if (armed !== key){
+    armed = key;
+    if (key === 'all') syncAllBtn.textContent = '▶ Yes — open store tabs & sync';
+    say('Heads-up: this opens each store’s library page in new tabs and auto-scrolls while it scans. Click again to start.');
+    return;
+  }
+  armed = null;
+  syncAllBtn.textContent = '⟳ Sync all libraries';
+  chrome.runtime.sendMessage({cmd: 'sync', service}, r =>
+    say(r?.busy ? 'A sync is already running…' : service ? 'Syncing ' + service + '…' : 'Syncing — tabs will open for each store.'));
+}
+
+syncAllBtn.addEventListener('click', () => requestSync(undefined));
 
 servicesEl.addEventListener('click', async ev => {
   const b = ev.target.closest('button');
   if (!b) return;
   if (b.dataset.sync){
-    chrome.runtime.sendMessage({cmd: 'sync', service: b.dataset.sync}, r => say(r?.busy ? 'A sync is already running…' : 'Syncing ' + b.dataset.sync + '…'));
+    requestSync(b.dataset.sync);
   } else if (b.dataset.copy){
     const {results = {}} = await chrome.storage.local.get('results');
     const r = results[b.dataset.copy];
