@@ -135,7 +135,7 @@ footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-s
   <div class="empty" id="empty" style="display:none">Nothing matches — you don't own that one yet 🍿</div>
 </main>
 <footer>
-  Library data scanned from Google Play, Prime Video &amp; Fandango at Home. Posters via iTunes Search (fetched on view, cached locally).
+  Library data scanned from Google Play, Prime Video &amp; Fandango at Home. Posters via iTunes Search &amp; Wikipedia — no API keys needed (fetched on view, cached locally).
   Watched/queue flags live in this browser. Use <b>⟳ Update</b> to refresh your library.
 </footer>
 
@@ -324,6 +324,7 @@ async function pump(){
     try {
       const key = LS.get('tmdb', '');
       let url = '', year = null, genre = null;
+      try {
       if (key){
         const kind = e.type==='tv' ? 'tv' : 'movie';
         const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(e.title)}${e.year?`&year=${e.year}`:''}`);
@@ -341,6 +342,17 @@ async function pump(){
         if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
         if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
           year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
+      }
+      } catch(err){ /* TMDB/iTunes unreachable (e.g. iTunes blocks file:// origins) — fall through to Wikipedia */ }
+      if (!url){
+        // Keyless fallback: Wikipedia lead images. Film/TV posters are
+        // fair-use, so pilicense=any is required; origin=* enables CORS
+        // from any origin, including file:// and chrome-extension:.
+        const q = encodeURIComponent(`${e.title} ${e.type==='tv'?'TV series':'film'}`);
+        const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${q}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=342&pilicense=any&format=json&origin=*`);
+        const j = await r.json();
+        const page = Object.values(j.query?.pages || {})[0];
+        url = page?.thumbnail?.source || '';
       }
       posters[e.id] = url || '';
       if (year || genre){ meta[e.id] = {...(meta[e.id]||{}), ...(year?{year:+year}:{}), ...(genre?{genre}:{})}; }
