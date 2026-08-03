@@ -323,8 +323,8 @@ const SLCollect = (() => {
     return out;
   }
 
-  // Fandango at Home "My Movies" page.
-  function fandango(){
+  // Fandango at Home "My Movies" / "My TV" pages.
+  function fandango(isTv){
     const out = [];
     document.querySelectorAll('a[href*="/content/browse/details/"]').forEach(a => {
       const m = (a.getAttribute('href') || '').match(/\/content\/browse\/details\/([^/]+)\/(\d+)/);
@@ -336,7 +336,7 @@ const SLCollect = (() => {
         key: m[2],
         title: t,
         url: 'https://athome.fandango.com/content/browse/details/' + m[1] + '/' + m[2],
-        tv: false,
+        tv: !!isTv,
       });
     });
     return out;

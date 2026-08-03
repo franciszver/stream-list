@@ -29,10 +29,18 @@ const SERVICES = {
     // param only takes effect together with SORT_ORDER, and 999 is the max
     // that works (bare ?minVisible=1000 rendered ~67). The SPA rewrites the
     // URL after load — harmless, the tiles stay rendered.
-    pages: [{url: 'https://athome.fandango.com/content/browse/mymovies?SORT_ORDER=A%2520-%2520Z&minVisible=999'}],
+    pages: [
+      {url: 'https://athome.fandango.com/content/browse/mymovies?SORT_ORDER=A%2520-%2520Z&minVisible=999'},
+      // TV lives on its own page; not everyone owns any, so a failure here
+      // must not discard the movies we already harvested.
+      {url: 'https://athome.fandango.com/content/browse/mytv?SORT_ORDER=A%2520-%2520Z&minVisible=999', optional: true},
+    ],
     script: 'harvest/fandango.js',
     loginHosts: ['athome.fandango.com/login', 'auth.athome.fandango.com'],
     timeoutMs: 240000, // virtualized grid, auto-scroll can be slow
+    // The page renders the full grid briefly and then tears it down, so the
+    // collector's observer has to be running before that happens.
+    injectEarly: true,
   },
 };
 
@@ -85,7 +93,15 @@ async function harvestPage(service, page){
   const cfg = SERVICES[service];
   const tab = await chrome.tabs.create({url: page.url, active: true});
   let keepOpen = false;
+  const files = ['lib/collect.js', cfg.script];
   try {
+    // Listen before injecting so an early harvester can't finish unheard.
+    const done = waitForHarvest(tab.id, service, cfg.timeoutMs);
+    done.catch(() => {}); // don't leave this rejection unhandled if we bail below
+    // Some pages must be watched from before they finish rendering.
+    const early = cfg.injectEarly
+      ? chrome.scripting.executeScript({target: {tabId: tab.id}, files, injectImmediately: true}).catch(() => null)
+      : null;
     await waitForLoad(tab.id);
     // Give SPAs a moment to render/redirect after "complete".
     await new Promise(r => setTimeout(r, 2500));
@@ -96,9 +112,10 @@ async function harvestPage(service, page){
       return null;
     }
     await setStatus(service, {state: 'running', found: 0});
-    const done = waitForHarvest(tab.id, service, cfg.timeoutMs);
-    done.catch(() => {}); // if executeScript throws below, don't leave this promise's rejection unhandled
-    await chrome.scripting.executeScript({target: {tabId: tab.id}, files: ['lib/collect.js', cfg.script]});
+    // The harvester no-ops if it's already running from the early pass.
+    if (!(early && await early)){
+      await chrome.scripting.executeScript({target: {tabId: tab.id}, files});
+    }
     const msg = await done;
     return msg.payload; // {service, items:[{title,url,tv}]}
   } catch (err){
@@ -115,7 +132,10 @@ async function syncService(service){
   const items = [];
   for (const page of cfg.pages){
     const payload = await harvestPage(service, page);
-    if (!payload) return; // status already set (login/error)
+    if (!payload){
+      if (page.optional) continue; // e.g. a TV page the user has nothing on
+      return; // status already set (login/error)
+    }
     items.push(...payload.items);
   }
   const {results = {}} = await chrome.storage.local.get('results');
