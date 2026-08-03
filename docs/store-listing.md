@@ -44,8 +44,8 @@ Tools (alt: Entertainment)
 - `play.google.com`, `www.amazon.com`, `athome.fandango.com`: the three
   stores being scanned. Scripts run only on their library pages, only during
   a sync you started.
-- `itunes.apple.com`, `api.themoviedb.org`: poster/artwork lookups by title.
-  Optional; TMDB is used only if the user pastes their own API key.
+- Poster lookups (iTunes Search, optionally TMDB with a user-supplied key)
+  use plain CORS fetches — no host permissions needed or requested.
 
 ## Privacy disclosures
 

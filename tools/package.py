@@ -18,9 +18,15 @@ dist = os.path.join(ROOT, 'dist')
 os.makedirs(dist, exist_ok=True)
 out = os.path.join(dist, f'stream-list-{version}.zip')
 
+SKIP = ('.', '~')  # dotfiles, editor backups
+JUNK = {'thumbs.db', 'desktop.ini'}
+
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
     for dirpath, dirnames, filenames in os.walk(EXT):
+        dirnames[:] = [d for d in dirnames if not d.startswith(SKIP)]
         for name in sorted(filenames):
+            if name.startswith(SKIP) or name.endswith('~') or name.lower() in JUNK:
+                continue
             full = os.path.join(dirpath, name)
             z.write(full, os.path.relpath(full, EXT))
 

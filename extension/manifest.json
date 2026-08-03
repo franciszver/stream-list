@@ -26,8 +26,6 @@
   "host_permissions": [
     "https://play.google.com/*",
     "https://www.amazon.com/*",
-    "https://athome.fandango.com/*",
-    "https://itunes.apple.com/*",
-    "https://api.themoviedb.org/*"
+    "https://athome.fandango.com/*"
   ]
 }
