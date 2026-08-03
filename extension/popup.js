@@ -12,8 +12,15 @@ const SERVICES = [
 const servicesEl = document.getElementById('services');
 const msgEl = document.getElementById('msg');
 
-document.getElementById('openApp').addEventListener('click', () => {
-  chrome.tabs.create({url: chrome.runtime.getURL('app/app.html')});
+document.getElementById('openApp').addEventListener('click', async () => {
+  const url = chrome.runtime.getURL('app/app.html');
+  const [existing] = await chrome.tabs.query({url});
+  if (existing){
+    await chrome.tabs.update(existing.id, {active: true});
+    await chrome.windows.update(existing.windowId, {focused: true});
+  } else {
+    await chrome.tabs.create({url});
+  }
   window.close();
 });
 
@@ -57,16 +64,24 @@ function say(t){ msgEl.textContent = t; }
 // First click warns (sync takes over the browser: opens store tabs,
 // focuses them, auto-scrolls); second click actually starts.
 const syncAllBtn = document.getElementById('syncAll');
-let armed = null;
-function requestSync(service){
+let armed = null, armTimer = 0;
+function disarm(){
+  armed = null; clearTimeout(armTimer);
+  syncAllBtn.textContent = '⟳ Sync all libraries';
+  render(); // restores any per-service ↻ label
+}
+function requestSync(service, btn){
   const key = service || 'all';
   if (armed !== key){
+    if (armed) disarm();
     armed = key;
     if (key === 'all') syncAllBtn.textContent = '▶ Yes — open store tabs & sync';
+    else if (btn) btn.textContent = '▶?';
     say('Heads-up: this opens each store’s library page in new tabs and auto-scrolls while it scans. Click again to start.');
+    armTimer = setTimeout(disarm, 8000); // don't let a stale arm fire much later
     return;
   }
-  armed = null;
+  armed = null; clearTimeout(armTimer);
   syncAllBtn.textContent = '⟳ Sync all libraries';
   chrome.runtime.sendMessage({cmd: 'sync', service}, r =>
     say(r?.busy ? 'A sync is already running…' : service ? 'Syncing ' + service + '…' : 'Syncing — tabs will open for each store.'));
@@ -78,7 +93,7 @@ servicesEl.addEventListener('click', async ev => {
   const b = ev.target.closest('button');
   if (!b) return;
   if (b.dataset.sync){
-    requestSync(b.dataset.sync);
+    requestSync(b.dataset.sync, b);
   } else if (b.dataset.copy){
     const {results = {}} = await chrome.storage.local.get('results');
     const r = results[b.dataset.copy];

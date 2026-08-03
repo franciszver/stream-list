@@ -18,11 +18,18 @@ __SHARED_MERGE__
 </script>"""
 MAIN_OPEN = "<script>\n'use strict';"
 
+# Default to the SAMPLE library. index.html is tracked on the public
+# branch, so an implicit build from the gitignored library.json would
+# silently stage private data for commit. Building from real data is
+# opt-in: python tools/build.py library.json
 if len(sys.argv) > 1:
     lib_path = sys.argv[1]
 else:
-    default_lib = os.path.join(ROOT, 'library.json')
-    lib_path = default_lib if os.path.exists(default_lib) else os.path.join(ROOT, 'library.sample.json')
+    lib_path = os.path.join(ROOT, 'library.sample.json')
+    if os.path.exists(os.path.join(ROOT, 'library.json')):
+        print('note: library.json exists but is IGNORED by default; '
+              'run "python tools/build.py library.json" for a private build '
+              '(do not commit that index.html on the public branch)')
 print('using library file:', lib_path)
 with open(lib_path, encoding='utf-8') as f:
     data = json.load(f)
@@ -36,7 +43,7 @@ with open(os.path.join(ROOT, 'extension', 'lib', 'collect.js'), encoding='utf-8'
 # --- index.html (single file, library inlined) ---
 payload = json.dumps(data, separators=(',', ':')).replace('</', '<\\/')
 out = tpl.replace('__LIBRARY_DATA__', payload).replace('__SHARED_MERGE__', shared).replace('__SHARED_COLLECT__', shared_collect)
-with open(os.path.join(ROOT, 'index.html'), 'w', encoding='utf-8') as f:
+with open(os.path.join(ROOT, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
     f.write(out)
 print('index.html written:', len(out), 'bytes,', len(data['items']), 'items')
 
@@ -50,10 +57,16 @@ start = app.index(MAIN_OPEN)
 end = app.index('</script>', start)
 app_js = app[start + len('<script>\n'):end]
 app_html = app[:start] + '<script src="app.js"></script>' + app[end + len('</script>'):]
+# Guard the split: a literal </script> inside the main script would truncate
+# app.js and splice raw JS into app.html as body text.
+if '<script' in app_js or '</script' in app_js:
+    sys.exit('build.py: main-script extraction mis-split (script tag landed inside app.js)')
+if app_html.count('<script') != app_html.count('</script>'):
+    sys.exit('build.py: unbalanced script tags in app.html after extraction')
 app_dir = os.path.join(ROOT, 'extension', 'app')
 os.makedirs(app_dir, exist_ok=True)
-with open(os.path.join(app_dir, 'app.html'), 'w', encoding='utf-8') as f:
+with open(os.path.join(app_dir, 'app.html'), 'w', encoding='utf-8', newline='\n') as f:
     f.write(app_html)
-with open(os.path.join(app_dir, 'app.js'), 'w', encoding='utf-8') as f:
+with open(os.path.join(app_dir, 'app.js'), 'w', encoding='utf-8', newline='\n') as f:
     f.write(app_js)
 print('extension/app written:', len(app_html), '+', len(app_js), 'bytes')

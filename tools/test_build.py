@@ -50,7 +50,14 @@ if unreplaced(app_html):
 if '"items":[]' not in app_html:
     fails.append('app.html: expected an empty embedded library')
 
+# 6. Script-extraction integrity: a mis-split (</script> inside the main
+# script) leaves unbalanced tags in app.html and script tags in app.js.
+if app_html.count('<script') != app_html.count('</script>'):
+    fails.append('app.html: unbalanced script tags (extraction mis-split?)')
+if '<script' in app_js:
+    fails.append('app.js: contains a script tag (extraction mis-split?)')
+
 for f_ in fails:
     print('FAIL:', f_)
-print(f'{5 - bool(fails)}/5 groups OK' if not fails else f'{len(fails)} failure(s)')
+print('6/6 groups OK' if not fails else f'{len(fails)} failure(s)')
 sys.exit(1 if fails else 0)

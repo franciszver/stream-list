@@ -119,6 +119,24 @@ async function syncService(service){
   await setStatus(service, {state: 'done', found: items.length});
 }
 
+// The worker can be killed mid-sync (extension reload, browser restart);
+// the finally-cleanup below never runs then, leaving 'running' statuses and
+// the ↻ badge stranded forever. Sweep them on every worker start.
+(async () => {
+  const {status = {}} = await chrome.storage.local.get('status');
+  let dirty = false;
+  for (const s of Object.keys(status)){
+    if (status[s].state === 'opening' || status[s].state === 'running'){
+      status[s] = {...status[s], state: 'error', error: 'interrupted — sync again', when: Date.now()};
+      dirty = true;
+    }
+  }
+  if (dirty){
+    await chrome.storage.local.set({status});
+    setBadge('!', '#d93025');
+  }
+})();
+
 let syncing = false;
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.cmd !== 'sync') return;

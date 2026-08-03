@@ -59,10 +59,15 @@ docs/store-listing.md   ← Chrome Web Store listing copy + permission justifica
 The app UI lives in `index.template.html` — **never edit `index.html` or `extension/app/` directly**. Rebuild after changes:
 
 ```
-python tools/build.py            # → index.html + extension/app/
+python tools/build.py            # → index.html + extension/app/ (sample data)
+python tools/test_build.py       # CSP/extraction regression checks
 node tools/test_merge.js && node tools/test_collect.js
 python tools/package.py          # → dist/stream-list-<version>.zip
 ```
+
+`build.py` always builds from `library.sample.json` unless you explicitly pass
+another file — a private `library.json` is never picked up implicitly, so you
+can't accidentally commit personal data into `index.html`.
 
 Then hit ⟳ reload on the extension card in `chrome://extensions`.
 

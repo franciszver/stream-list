@@ -460,8 +460,9 @@ function stats(){
     if ((flags[e.id]||{}).w) watched++;
   }
   const total = items.length;
+  const perTotal = (per.google+per.amazon+per.fandango) || 1;
   const bar = Object.entries(per).map(([s,n]) =>
-    `<i style="width:${(n/(per.google+per.amazon+per.fandango)*100).toFixed(1)}%;background:${SVC[s].color}" title="${SVC[s].name}: ${n}"></i>`).join('');
+    `<i style="width:${(n/perTotal*100).toFixed(1)}%;background:${SVC[s].color}" title="${SVC[s].name}: ${n}"></i>`).join('');
   el.innerHTML = `
     <div class="tile"><div class="n">${total}</div><div class="l">titles owned</div>
       <div class="bar">${bar}</div></div>
@@ -760,13 +761,20 @@ if (IS_EXT){
   }
   async function autoMerge(){
     const {results = {}} = await chrome.storage.local.get('results');
-    let added = 0, linked = 0;
+    // Watermark per service: merge each stored result once. Without this,
+    // every page load re-merges old results and silently resurrects titles
+    // the user removed via a backup restore.
+    const mergedAt = LS.get('mergedAt', {});
+    let added = 0, linked = 0, consumed = false;
     for (const r of Object.values(results)){
       if (!r || typeof r.service !== 'string' || !Array.isArray(r.items)) continue;
+      if (!(r.when > (mergedAt[r.service] || 0))) continue;
       const byNorm = {}; for (const e of library) byNorm[SLMerge.keyOf(e.title, e.type === 'tv')] = e;
       const res = SLMerge.mergeInto(byNorm, {service: r.service, items: r.items});
       library.push(...res.added); added += res.added.length; linked += res.linked.length;
+      mergedAt[r.service] = r.when; consumed = true;
     }
+    if (consumed) LS.set('mergedAt', mergedAt);
     if (added || linked){
       LS.set('library', library); LS.set('gen', new Date().toISOString().slice(0, 10));
       rebuild(); render();
