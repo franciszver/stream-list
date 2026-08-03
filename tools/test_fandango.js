@@ -45,11 +45,11 @@ async function run({steps, header = 'My Movies (202)', pathname = '/content/brow
     document: {
       readyState: 'complete',
       documentElement: {},
-      body: {get innerText(){ return header; }},
-      querySelectorAll: () => current(),
+      body: {scrollHeight: 5000, get innerText(){ return header; }},
+      querySelectorAll: sel => /button|role=/.test(sel) ? [] : current(),
       addEventListener(){}, removeEventListener(){},
     },
-    window: {innerHeight: 800, scrollBy(){}, addEventListener: (n, f) => f()},
+    window: {innerHeight: 800, scrollBy(){}, scrollTo(){}, addEventListener: (n, f) => f()},
   };
   sandbox.window.__proto__ = sandbox;
   sandbox.globalThis = sandbox;

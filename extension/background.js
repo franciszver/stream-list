@@ -29,11 +29,14 @@ const SERVICES = {
     // param only takes effect together with SORT_ORDER, and 999 is the max
     // that works (bare ?minVisible=1000 rendered ~67). The SPA rewrites the
     // URL after load — harmless, the tiles stay rendered.
+    // Plain sorted pages: asking for a big minVisible made the app reset
+    // its state and render FEWER tiles, and kept the page "loading" for
+    // minutes. Let it paginate naturally and scroll it like Amazon.
     pages: [
-      {url: 'https://athome.fandango.com/content/browse/mymovies?SORT_ORDER=A%2520-%2520Z&minVisible=999'},
+      {url: 'https://athome.fandango.com/content/browse/mymovies?SORT_ORDER=A%2520-%2520Z'},
       // TV lives on its own page; not everyone owns any, so a failure here
       // must not discard the movies we already harvested.
-      {url: 'https://athome.fandango.com/content/browse/mytv?SORT_ORDER=A%2520-%2520Z&minVisible=999', optional: true},
+      {url: 'https://athome.fandango.com/content/browse/mytv?SORT_ORDER=A%2520-%2520Z', optional: true},
     ],
     script: 'harvest/fandango.js',
     loginHosts: ['athome.fandango.com/login', 'auth.athome.fandango.com'],

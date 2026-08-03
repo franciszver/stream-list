@@ -57,16 +57,28 @@
   }
   await new Promise(r => setTimeout(r, 1500));
 
+  // Scroll to the bottom repeatedly, exactly like the Amazon harvester,
+  // and click any "show more" control the grid offers. Give up only after
+  // a long run of rounds that find nothing new — a virtualized grid can
+  // pause before it renders the next batch.
+  const clickLoadMore = () => {
+    for (const b of document.querySelectorAll('button, a, [role="button"]')){
+      if (/^(see|load|show)\s+more/i.test((b.textContent || '').trim())){ b.click(); return true; }
+    }
+    return false;
+  };
+
   let expected = expectedCount();
   let stale = 0, last = found.size;
   send({type: 'progress', found: found.size, expected});
   while ((expected === null || found.size < expected) && stale < 25){
-    // Drive the virtualizer from the last rendered tile: the grid can live
-    // in an inner scroll container that window.scrollBy never moves.
+    window.scrollTo(0, document.body.scrollHeight);
+    // Also drive the virtualizer from the last rendered tile: the grid can
+    // live in an inner scroll container that window scrolling never moves.
     const anchors = document.querySelectorAll('a[href*="/content/browse/details/"]');
     if (anchors.length) anchors[anchors.length - 1].scrollIntoView({block: 'end'});
-    window.scrollBy(0, Math.round(window.innerHeight * 0.8));
-    await new Promise(r => setTimeout(r, 700));
+    clickLoadMore();
+    await new Promise(r => setTimeout(r, 900));
     if (expected === null) expected = expectedCount();
     collect();
     if (found.size === last) stale++; else { stale = 0; last = found.size; }
