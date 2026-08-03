@@ -192,4 +192,36 @@ test('makeEntry omits poster when the tile had no artwork', () => {
   assert.strictEqual('poster' in SLMerge.makeEntry({title: 'X', url: 'https://u'}, 'amazon'), false);
 });
 
+// --- store-suggestion hint (partial ownership) ------------------------
+
+test('makeEntry flags a store-suggestion tile', () => {
+  const e = SLMerge.makeEntry({title: 'X', url: 'https://u', store: true}, 'amazon');
+  assert.strictEqual(e.storeHint, true);
+});
+
+test('makeEntry leaves storeHint unset for a fully-owned tile', () => {
+  assert.strictEqual('storeHint' in SLMerge.makeEntry({title: 'X', url: 'https://u', store: false}, 'amazon'), false);
+});
+
+test('mergeInto sets storeHint on an existing entry when the tile now suggests a purchase', () => {
+  const byNorm = {};
+  SLMerge.mergeInto(byNorm, {service: 'amazon', items: [{title: 'Show', url: 'https://a/s', tv: true}]});
+  SLMerge.mergeInto(byNorm, {service: 'amazon', items: [{title: 'Show', url: 'https://a/s', tv: true, store: true}]});
+  assert.strictEqual(byNorm[SLMerge.keyOf('Show', true)].storeHint, true);
+});
+
+test('mergeInto clears storeHint once you own the rest (store:false)', () => {
+  const byNorm = {};
+  SLMerge.mergeInto(byNorm, {service: 'amazon', items: [{title: 'Show', url: 'https://a/s', tv: true, store: true}]});
+  SLMerge.mergeInto(byNorm, {service: 'amazon', items: [{title: 'Show', url: 'https://a/s', tv: true, store: false}]});
+  assert.strictEqual('storeHint' in byNorm[SLMerge.keyOf('Show', true)], false);
+});
+
+test('mergeInto leaves storeHint alone when a collector omits the field', () => {
+  const byNorm = {};
+  SLMerge.mergeInto(byNorm, {service: 'amazon', items: [{title: 'Show', url: 'https://a/s', tv: true, store: true}]});
+  SLMerge.mergeInto(byNorm, {service: 'fandango', items: [{title: 'Show', url: 'https://f/s', tv: true}]});
+  assert.strictEqual(byNorm[SLMerge.keyOf('Show', true)].storeHint, true);
+});
+
 console.log(`\n${n} tests passed`);

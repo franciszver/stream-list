@@ -73,6 +73,21 @@ const SLCollect = (() => {
     return out;
   }
 
+  // Prime Video overlays a "Store" (shopping-bag) icon on tiles that are
+  // partly storefront — e.g. a show where only some episodes/seasons are
+  // owned and the rest are offered for purchase. Search near the anchor,
+  // but stop climbing at any container holding other cards so a sibling
+  // tile's badge can't leak onto this one.
+  function storeBadge(a){
+    for (let p = a, i = 0; p && i < 5; p = p.parentElement, i++){
+      if (!p.querySelectorAll) continue;
+      if (p !== a && p.querySelectorAll('a[href*="/gp/video/detail/"]').length > 1) break;
+      const t = p.querySelector('[data-testid="card-overlay"] title');
+      if (t && /store/i.test(t.textContent || '')) return true;
+    }
+    return false;
+  }
+
   // Prime Video library page (movies or tv, per isTv).
   function amazon(isTv, includeRails){
     const out = [];
@@ -81,7 +96,7 @@ const SLCollect = (() => {
       if (!m) return;
       const t = (a.getAttribute('aria-label') || a.textContent).trim();
       if (!t) return;
-      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv, img: artwork(a)});
+      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv, img: artwork(a), store: storeBadge(a)});
     });
     return out;
   }

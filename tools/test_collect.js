@@ -134,6 +134,50 @@ test('ownedLinks(selector, true) returns rails too, for diffing', () => {
   assert.strictEqual(SLCollect.ownedLinks('a').length, 40);
 });
 
+// --- Amazon store-suggestion badge -------------------------------------
+// Prime tiles that are partly storefront (own some episodes, buy the rest)
+// carry a shopping-bag overlay: [data-testid="card-overlay"] > … > <title>
+// containing "Store". amazon() must flag those, and a neighbouring tile's
+// badge must not leak onto this one.
+function amazonCard(withBadge){
+  const card = el(null, 'card');
+  const a = el(card, 'a');
+  a.href = 'https://www.amazon.com/gp/video/detail/B0TEST01';
+  a.getAttribute = k => k === 'aria-label' ? 'Some Show' : null;
+  if (withBadge){
+    const overlay = el(card, 'overlay'); overlay.testid = 'card-overlay';
+    el(overlay, 'title').textContent = 'Store Filled';
+  }
+  // storeBadge() uses querySelectorAll('a[href*=...]') and
+  // querySelector('[data-testid="card-overlay"] title').
+  const nodes = []; (function walk(e){ nodes.push(e); e.kids.forEach(walk); })(card);
+  for (const e of nodes){
+    e.querySelectorAll = sel => /detail/.test(sel)
+      ? nodes.filter(x => e.contains(x) && x.tag === 'a')
+      : [];
+    e.querySelector = sel => {
+      if (/card-overlay/.test(sel)){
+        const o = nodes.find(x => e.contains(x) && x.testid === 'card-overlay');
+        return o && nodes.find(y => o.contains(y) && y.tag === 'title') || null;
+      }
+      return nodes.find(x => e.contains(x) && x.tag === 'title') || null;
+    };
+  }
+  return {card, anchor: a};
+}
+
+test('amazon() flags a tile carrying the Store badge', () => {
+  const {anchor} = amazonCard(true);
+  global.document = {querySelectorAll: () => [anchor]};
+  assert.strictEqual(SLCollect.amazon(false)[0].store, true);
+});
+
+test('amazon() does not flag a fully-owned tile', () => {
+  const {anchor} = amazonCard(false);
+  global.document = {querySelectorAll: () => [anchor]};
+  assert.strictEqual(SLCollect.amazon(false)[0].store, false);
+});
+
 global.document = {querySelectorAll: () => []};
 
 console.log('\n' + n + ' tests passed');

@@ -46,7 +46,7 @@ function rebuild(){
 }
 rebuild();
 
-const state = { q:'', svc:null, type:null, flag:null, multi:false, sort:'title', view: LS.get('view','grid') };
+const state = { q:'', svc:null, type:null, flag:null, multi:false, store:false, sort:'title', view: LS.get('view','grid') };
 
 // ---------- chips ----------
 const chipsEl = document.getElementById('chips');
@@ -57,6 +57,7 @@ function chips(){
   c.push({k:'type', v:'tv', label:'TV'});
   for (const [s,d] of Object.entries(SVC)) c.push({k:'svc', v:s, label:d.name, dot:d.color});
   c.push({k:'multi', v:true, label:'Owned 2+ places'});
+  if (items.some(e => e.storeHint)) c.push({k:'store', v:true, label:'🛍 Partial / buy suggested'});
   c.push({k:'flag', v:'q', label:'Watch next'});
   c.push({k:'flag', v:'w', label:'Watched'});
   c.push({k:'flag', v:'uw', label:'Unwatched'});
@@ -64,14 +65,15 @@ function chips(){
   for (const ch of c){
     const b = document.createElement('span');
     b.className = 'chip';
-    const active = ch.k==='multi' ? state.multi===true && ch.v===true
+    const toggle = ch.k==='multi' || ch.k==='store';
+    const active = toggle ? state[ch.k]===true && ch.v===true
       : state[ch.k]===ch.v && !(ch.k==='type'&&ch.v===null&&(state.type!==null));
-    if (ch.k==='type'&&ch.v===null) { if(state.type===null&&!state.svc&&!state.flag&&!state.multi) b.classList.add('active'); }
+    if (ch.k==='type'&&ch.v===null) { if(state.type===null&&!state.svc&&!state.flag&&!state.multi&&!state.store) b.classList.add('active'); }
     else if (active) b.classList.add('active');
     b.innerHTML = (ch.dot?`<span class="dot" style="background:${ch.dot}"></span>`:'') + ch.label;
     b.onclick = () => {
-      if (ch.k==='type'&&ch.v===null){ state.type=null; state.svc=null; state.flag=null; state.multi=false; }
-      else if (ch.k==='multi') state.multi = !state.multi;
+      if (ch.k==='type'&&ch.v===null){ state.type=null; state.svc=null; state.flag=null; state.multi=false; state.store=false; }
+      else if (toggle) state[ch.k] = !state[ch.k];
       else state[ch.k] = state[ch.k]===ch.v ? null : ch.v;
       render();
     };
@@ -93,6 +95,7 @@ function visible(){
     if (state.svc && !e.services[state.svc]) return false;
     if (state.type && e.type!==state.type) return false;
     if (state.multi && e.serviceCount<2) return false;
+    if (state.store && !e.storeHint) return false;
     const f = flags[e.id]||{};
     if (state.flag==='w' && !f.w) return false;
     if (state.flag==='uw' && f.w) return false;
@@ -248,6 +251,7 @@ function render(){
           <button class="flag w ${f.w?'on':''}" title="Watched">✓</button>
         </div>
         ${e.type==='tv'?'<span class="tvtag">TV</span>':''}
+        ${e.storeHint?'<span class="storetag" title="The store shows a purchase suggestion here — you may not own every episode or season.">🛍</span>':''}
       </div>
       <div class="cbody">
         <div class="ct">${esc(e.title)}</div>
@@ -285,6 +289,7 @@ function detail(e){
       <div class="poster">${posters[e.id]?`<img src="${safeUrl(posters[e.id])}" alt="">`:`<div class="ph">${esc(e.title)}</div>`}</div>
       <div style="flex:1">
         <p>${e.type==='tv'?'TV series':'Movie'}${meta[e.id]?.genre?` · ${esc(meta[e.id].genre)}`:''} · owned on ${e.serviceCount} service${e.serviceCount>1?'s':''}</p>
+        ${e.storeHint?'<p>🛍 The store shows a purchase suggestion — you may not own every episode or season of this.</p>':''}
         ${svcLinks(e, true)}
         <div class="rowbtns">
           <button class="ctl" id="dW">${f.w?'✓ Watched':'Mark watched'}</button>
@@ -428,7 +433,7 @@ SLCollect.google().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.
 const j=JSON.stringify({service:'google',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
 document.getElementById('bkAmazon').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();
-SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img})});
+SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img,store:it.store})});
 const j=JSON.stringify({service:'amazon',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
 document.getElementById('bkFandango').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();

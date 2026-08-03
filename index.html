@@ -65,6 +65,7 @@ main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
 .flag.on{background:var(--good)}
 .flag.q.on{background:var(--accent)}
 .tvtag{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;letter-spacing:.5px;backdrop-filter:blur(4px)}
+.storetag{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.55);font-size:11px;padding:2px 5px;border-radius:6px;backdrop-filter:blur(4px);cursor:help}
 /* list view */
 #grid.list{display:flex;flex-direction:column;gap:6px}
 #grid.list .card{flex-direction:row;align-items:center;padding:8px 12px;gap:12px}
@@ -214,6 +215,7 @@ const SLMerge = (() => {
       serviceCount: 1,
     };
     if (it.img) e.poster = it.img; // artwork straight off the store's tile
+    if (it.store) e.storeHint = true; // store shows a buy suggestion (partial ownership)
     return e;
   }
   // Artwork the store itself can give us, used when the poster lookups
@@ -244,6 +246,12 @@ const SLMerge = (() => {
         // take it here too — otherwise store artwork only ever reaches
         // titles that entered the library after capture existed.
         if (it.img && !ex.poster) ex.poster = it.img;
+        // Store-suggestion hint self-heals in both directions: buying the
+        // remaining episodes clears it on the next sync (only collectors
+        // that actually looked send a boolean; others leave it alone).
+        if (typeof it.store === 'boolean'){
+          if (it.store) ex.storeHint = true; else delete ex.storeHint;
+        }
         if (!ex.services[payload.service]){
           ex.services[payload.service] = [{url: it.url}];
           ex.serviceCount = Object.keys(ex.services).length;
@@ -382,6 +390,21 @@ const SLCollect = (() => {
     return out;
   }
 
+  // Prime Video overlays a "Store" (shopping-bag) icon on tiles that are
+  // partly storefront — e.g. a show where only some episodes/seasons are
+  // owned and the rest are offered for purchase. Search near the anchor,
+  // but stop climbing at any container holding other cards so a sibling
+  // tile's badge can't leak onto this one.
+  function storeBadge(a){
+    for (let p = a, i = 0; p && i < 5; p = p.parentElement, i++){
+      if (!p.querySelectorAll) continue;
+      if (p !== a && p.querySelectorAll('a[href*="/gp/video/detail/"]').length > 1) break;
+      const t = p.querySelector('[data-testid="card-overlay"] title');
+      if (t && /store/i.test(t.textContent || '')) return true;
+    }
+    return false;
+  }
+
   // Prime Video library page (movies or tv, per isTv).
   function amazon(isTv, includeRails){
     const out = [];
@@ -390,7 +413,7 @@ const SLCollect = (() => {
       if (!m) return;
       const t = (a.getAttribute('aria-label') || a.textContent).trim();
       if (!t) return;
-      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv, img: artwork(a)});
+      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv, img: artwork(a), store: storeBadge(a)});
     });
     return out;
   }
@@ -469,7 +492,7 @@ function rebuild(){
 }
 rebuild();
 
-const state = { q:'', svc:null, type:null, flag:null, multi:false, sort:'title', view: LS.get('view','grid') };
+const state = { q:'', svc:null, type:null, flag:null, multi:false, store:false, sort:'title', view: LS.get('view','grid') };
 
 // ---------- chips ----------
 const chipsEl = document.getElementById('chips');
@@ -480,6 +503,7 @@ function chips(){
   c.push({k:'type', v:'tv', label:'TV'});
   for (const [s,d] of Object.entries(SVC)) c.push({k:'svc', v:s, label:d.name, dot:d.color});
   c.push({k:'multi', v:true, label:'Owned 2+ places'});
+  if (items.some(e => e.storeHint)) c.push({k:'store', v:true, label:'🛍 Partial / buy suggested'});
   c.push({k:'flag', v:'q', label:'Watch next'});
   c.push({k:'flag', v:'w', label:'Watched'});
   c.push({k:'flag', v:'uw', label:'Unwatched'});
@@ -487,14 +511,15 @@ function chips(){
   for (const ch of c){
     const b = document.createElement('span');
     b.className = 'chip';
-    const active = ch.k==='multi' ? state.multi===true && ch.v===true
+    const toggle = ch.k==='multi' || ch.k==='store';
+    const active = toggle ? state[ch.k]===true && ch.v===true
       : state[ch.k]===ch.v && !(ch.k==='type'&&ch.v===null&&(state.type!==null));
-    if (ch.k==='type'&&ch.v===null) { if(state.type===null&&!state.svc&&!state.flag&&!state.multi) b.classList.add('active'); }
+    if (ch.k==='type'&&ch.v===null) { if(state.type===null&&!state.svc&&!state.flag&&!state.multi&&!state.store) b.classList.add('active'); }
     else if (active) b.classList.add('active');
     b.innerHTML = (ch.dot?`<span class="dot" style="background:${ch.dot}"></span>`:'') + ch.label;
     b.onclick = () => {
-      if (ch.k==='type'&&ch.v===null){ state.type=null; state.svc=null; state.flag=null; state.multi=false; }
-      else if (ch.k==='multi') state.multi = !state.multi;
+      if (ch.k==='type'&&ch.v===null){ state.type=null; state.svc=null; state.flag=null; state.multi=false; state.store=false; }
+      else if (toggle) state[ch.k] = !state[ch.k];
       else state[ch.k] = state[ch.k]===ch.v ? null : ch.v;
       render();
     };
@@ -516,6 +541,7 @@ function visible(){
     if (state.svc && !e.services[state.svc]) return false;
     if (state.type && e.type!==state.type) return false;
     if (state.multi && e.serviceCount<2) return false;
+    if (state.store && !e.storeHint) return false;
     const f = flags[e.id]||{};
     if (state.flag==='w' && !f.w) return false;
     if (state.flag==='uw' && f.w) return false;
@@ -671,6 +697,7 @@ function render(){
           <button class="flag w ${f.w?'on':''}" title="Watched">✓</button>
         </div>
         ${e.type==='tv'?'<span class="tvtag">TV</span>':''}
+        ${e.storeHint?'<span class="storetag" title="The store shows a purchase suggestion here — you may not own every episode or season.">🛍</span>':''}
       </div>
       <div class="cbody">
         <div class="ct">${esc(e.title)}</div>
@@ -708,6 +735,7 @@ function detail(e){
       <div class="poster">${posters[e.id]?`<img src="${safeUrl(posters[e.id])}" alt="">`:`<div class="ph">${esc(e.title)}</div>`}</div>
       <div style="flex:1">
         <p>${e.type==='tv'?'TV series':'Movie'}${meta[e.id]?.genre?` · ${esc(meta[e.id].genre)}`:''} · owned on ${e.serviceCount} service${e.serviceCount>1?'s':''}</p>
+        ${e.storeHint?'<p>🛍 The store shows a purchase suggestion — you may not own every episode or season of this.</p>':''}
         ${svcLinks(e, true)}
         <div class="rowbtns">
           <button class="ctl" id="dW">${f.w?'✓ Watched':'Mark watched'}</button>
@@ -851,7 +879,7 @@ SLCollect.google().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.
 const j=JSON.stringify({service:'google',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
 document.getElementById('bkAmazon').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();
-SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img})});
+SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img,store:it.store})});
 const j=JSON.stringify({service:'amazon',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
 document.getElementById('bkFandango').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();

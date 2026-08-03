@@ -33,6 +33,7 @@ const SLMerge = (() => {
       serviceCount: 1,
     };
     if (it.img) e.poster = it.img; // artwork straight off the store's tile
+    if (it.store) e.storeHint = true; // store shows a buy suggestion (partial ownership)
     return e;
   }
   // Artwork the store itself can give us, used when the poster lookups
@@ -63,6 +64,12 @@ const SLMerge = (() => {
         // take it here too — otherwise store artwork only ever reaches
         // titles that entered the library after capture existed.
         if (it.img && !ex.poster) ex.poster = it.img;
+        // Store-suggestion hint self-heals in both directions: buying the
+        // remaining episodes clears it on the next sync (only collectors
+        // that actually looked send a boolean; others leave it alone).
+        if (typeof it.store === 'boolean'){
+          if (it.store) ex.storeHint = true; else delete ex.storeHint;
+        }
         if (!ex.services[payload.service]){
           ex.services[payload.service] = [{url: it.url}];
           ex.serviceCount = Object.keys(ex.services).length;
