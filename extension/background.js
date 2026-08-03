@@ -31,6 +31,11 @@ const SERVICES = {
   },
 };
 
+function setBadge(text, color){
+  chrome.action.setBadgeText({text});
+  if (color) chrome.action.setBadgeBackgroundColor({color});
+}
+
 async function setStatus(service, patch){
   const {status = {}} = await chrome.storage.local.get('status');
   status[service] = {...(status[service] || {}), ...patch, when: Date.now()};
@@ -120,11 +125,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (syncing){ sendResponse({busy: true}); return; }
   const services = msg.service ? [msg.service] : Object.keys(SERVICES);
   syncing = true;
+  setBadge('↻', '#4a7dff');
   (async () => {
     try {
       for (const s of services) await syncService(s);
     } finally {
       syncing = false;
+      const {status = {}} = await chrome.storage.local.get('status');
+      const ok = services.every(s => status[s]?.state === 'done');
+      setBadge(ok ? '✓' : '!', ok ? '#1a9c4b' : '#d93025');
     }
   })();
   sendResponse({started: true});
