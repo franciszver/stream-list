@@ -199,7 +199,16 @@ const LS = {
   set(k,v){ try{ localStorage.setItem('sl_'+k, JSON.stringify(v)) }catch(e){} },
 };
 let flags = LS.get('flags', {});           // id -> {w:1 watched, q:1 queue}
-let posters = LS.get('posters', {});       // id -> url ('' = not found)
+let posters = LS.get('posters', {});       // id -> url ('' = looked up, not found)
+// A failed lookup is cached as '' so we don't re-query every load — but
+// that also means improving the lookup can never help a title that once
+// failed. Stamp the cache with the lookup version and drop the misses
+// (never the hits) whenever that version changes.
+const POSTER_LOOKUP_VER = 2;
+if (LS.get('posterVer', 0) !== POSTER_LOOKUP_VER){
+  for (const id of Object.keys(posters)) if (!posters[id]) delete posters[id];
+  LS.set('posters', posters); LS.set('posterVer', POSTER_LOOKUP_VER);
+}
 let meta = LS.get('meta', {});             // id -> {year, genre}
 
 // localStorage IS the database: sl_library holds the full items array.
@@ -291,7 +300,9 @@ function stats(){
   for (const s in SVC) per[s] = 0;
   let movies=0, tv=0, multi=0, watched=0;
   for (const e of items){
-    for (const s in e.services) per[s] = (per[s]||0)+1;
+    // Ignore services this build doesn't know: an imported or legacy entry
+    // with an unknown key would otherwise throw here and blank the app.
+    for (const s in e.services) if (s in SVC) per[s] = (per[s]||0)+1;
     if (e.type==='movie') movies++; else tv++;
     if (e.serviceCount>1) multi++;
     if ((flags[e.id]||{}).w) watched++;
@@ -358,8 +369,11 @@ async function pump(){
       // fair-use, so pilicense=any is required; origin=* enables CORS from
       // any origin, including file:// and chrome-extension:. Narrow query
       // first (year disambiguates remakes), widening only if it misses.
+      // Always keep the film/TV word: a bare title search returns whatever
+      // the name means generally ("1776" -> a painting of the Declaration
+      // of Independence), and a confidently wrong poster is worse than none.
       const kindWord = e.type==='tv' ? 'TV series' : 'film';
-      for (const q of [e.year ? `${st} ${e.year} ${kindWord}` : null, `${st} ${kindWord}`, st]){
+      for (const q of [e.year ? `${st} ${e.year} ${kindWord}` : null, `${st} ${kindWord}`]){
         if (url || !q) continue;
         const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=342&pilicense=any&format=json&origin=*`);
         const j = await r.json();
@@ -388,6 +402,7 @@ const io = new IntersectionObserver(en => {
 function svcLinks(e, big){
   return Object.entries(e.services).map(([s, links]) => {
     const d = SVC[s];
+    if (!d) return ''; // unknown service (imported/legacy data) — skip, don't crash
     return links.map(l => big
       ? `<a class="watchbtn" style="background:${d.color}" href="${safeUrl(l.url)}" target="_blank" rel="noopener">▶ Watch on ${d.name}${l.note?` <small>(${esc(l.note)})</small>`:''}</a>`
       : `<a class="svc ${d.cls}" href="${safeUrl(l.url)}" target="_blank" rel="noopener" title="${esc(d.name)}${l.note?' — '+esc(l.note):''}">${d.letter}</a>`
@@ -427,7 +442,13 @@ function render(){
         <div class="svcs">${svcLinks(e)}</div>
       </div>`;
     const img = card.querySelector('img');
-    img.addEventListener('error', () => img.remove());
+    // A cached URL that 404s (e.g. a synthesized store poster for a title
+    // whose CDN has no art) would otherwise be retried on every render and
+    // never re-looked-up. Forget it so the next session tries properly.
+    img.addEventListener('error', () => {
+      if (posters[e.id]){ delete posters[e.id]; LS.set('posters', posters); }
+      img.remove();
+    });
     if (posters[e.id]) img.src = posters[e.id];
     card.querySelector('.poster').addEventListener('click', ev => { if (ev.target.closest('.flag')) return; detail(e); });
     card.querySelector('.flag.w').onclick = () => { f.w = f.w?0:1; flags[e.id]=f; LS.set('flags',flags); render(); };
@@ -490,6 +511,7 @@ const U = {
   merge(){
     let j; try{ j = JSON.parse(document.getElementById('pasteBox').value) }catch(e){ alert('That is not valid JSON'); return }
     if (typeof j.service !== 'string' || !Array.isArray(j.items)){ alert('Expected {service, items} from a bookmarklet'); return }
+    if (!(j.service in SVC)){ alert('Unknown service: ' + j.service); return }
     U.mergeBookmarklet(j);
   },
   importData(j){
@@ -567,15 +589,15 @@ function bkm(code){ return 'javascript:' + encodeURIComponent(`(()=>{${code}})()
 const COLLECT_SRC = document.getElementById('collect-src').textContent;
 document.getElementById('bkGoogle').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();
-SLCollect.google().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
+SLCollect.google().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img})});
 const j=JSON.stringify({service:'google',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
 document.getElementById('bkAmazon').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();
-SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
+SLCollect.amazon(location.pathname.includes('/tv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img})});
 const j=JSON.stringify({service:'amazon',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles — paste into Stream List'));`);
 document.getElementById('bkFandango').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();
-SLCollect.fandango().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
+SLCollect.fandango(location.pathname.includes('/mytv')).forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv,img:it.img})});
 const j=JSON.stringify({service:'fandango',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles (scroll the whole page first!) — paste into Stream List'));`);
 
 // ---------- extension integration ----------

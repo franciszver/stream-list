@@ -5,6 +5,8 @@
 // alongside this file so it's available here.
 (async () => {
   'use strict';
+  if (window.__slHarvesting) return; // background.js may inject twice
+  window.__slHarvesting = true;
   const send = m => chrome.runtime.sendMessage({from: 'harvest', service: 'amazon', ...m});
   const isTv = location.pathname.includes('/library/tv');
   const found = new Map(); // key (ASIN) -> item

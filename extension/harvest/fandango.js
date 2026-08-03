@@ -15,8 +15,8 @@
 // extension/lib/collect.js (SLCollect).
 (async () => {
   'use strict';
-  if (window.__slFandangoHarvesting) return; // early + fallback injection both fired
-  window.__slFandangoHarvesting = true;
+  if (window.__slHarvesting) return; // early + fallback injection both fired
+  window.__slHarvesting = true;
 
   const isTv = /\/mytv/i.test(location.pathname);
   const send = m => chrome.runtime.sendMessage({from: 'harvest', service: 'fandango', ...m});

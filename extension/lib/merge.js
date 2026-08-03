@@ -59,6 +59,10 @@ const SLMerge = (() => {
       const key = keyOf(it.title, !!it.tv);
       const ex = byNorm[key];
       if (ex){
+        // Artwork can arrive on a re-sync of a title we already know, so
+        // take it here too — otherwise store artwork only ever reaches
+        // titles that entered the library after capture existed.
+        if (it.img && !ex.poster) ex.poster = it.img;
         if (!ex.services[payload.service]){
           ex.services[payload.service] = [{url: it.url}];
           ex.serviceCount = Object.keys(ex.services).length;

@@ -66,8 +66,11 @@ async function run({steps, header = 'My Movies (202)', pathname = '/content/brow
 (async () => {
   const many = Array.from({length: 202}, (_, i) => tile(1000 + i, 'Movie ' + i));
 
-  // 1. THE REGRESSION: full render, then the app tears it down to 67.
-  let r = await run({steps: [many, many.slice(0, 67), many.slice(0, 67), many.slice(0, 67)]});
+  // 1. THE REGRESSION: page starts empty, renders everything, then the app
+  // tears it back down to 67. Starting empty matters — if step 0 already
+  // held the tiles, the harvester's initial synchronous collect() would
+  // pass this test with the observer deleted.
+  let r = await run({steps: [[], many, many.slice(0, 67), many.slice(0, 67)]});
   ok('keeps every tile seen even after the page removes them',
      r.done.payload.items.length === 202, 'got ' + r.done.payload.items.length);
 

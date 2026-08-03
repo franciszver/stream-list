@@ -55,6 +55,9 @@ function setBadge(text, color){
 async function setStatus(service, patch){
   const {status = {}} = await chrome.storage.local.get('status');
   status[service] = {...(status[service] || {}), ...patch, when: Date.now()};
+  // Don't let a recovered service keep claiming an old failure: an
+  // optional page can error and the sync still finish successfully.
+  if (patch.state && patch.state !== 'error') delete status[service].error;
   await chrome.storage.local.set({status});
 }
 
@@ -71,7 +74,7 @@ function waitForLoad(tabId, timeoutMs = 45000){
     const done = tab => { clearTimeout(timer); chrome.tabs.onUpdated.removeListener(listener); resolve(tab); };
     const listener = (id, info, tab) => { if (id === tabId && info.status === 'complete') done(tab); };
     chrome.tabs.onUpdated.addListener(listener);
-    chrome.tabs.get(tabId).then(tab => { if (tab.status === 'complete') done(tab); });
+    chrome.tabs.get(tabId).then(tab => { if (tab.status === 'complete') done(tab); }, () => {});
   });
 }
 
@@ -114,9 +117,10 @@ async function harvestPage(service, page){
     harvest.promise.catch(() => {}); // we may cancel/bail below
     // Some pages must be watched from before they finish rendering.
     const early = cfg.injectEarly
-      ? chrome.scripting.executeScript({target: {tabId: tab.id}, files, injectImmediately: true}).catch(() => null)
+      ? chrome.scripting.executeScript({target: {tabId: tab.id}, files, injectImmediately: true})
+          .catch(err => { console.warn('early injection failed:', service, err?.message || err); return null; })
       : null;
-    await waitForLoad(tab.id, cfg.loadTimeoutMs);
+    await waitForLoad(tab.id);
     // Give SPAs a moment to render/redirect after "complete".
     await new Promise(r => setTimeout(r, 2500));
     const now = await chrome.tabs.get(tab.id);
@@ -127,10 +131,16 @@ async function harvestPage(service, page){
       return null;
     }
     await setStatus(service, {state: 'running', found: 0});
-    // The harvester no-ops if it's already running from the early pass.
-    if (!(early && await early)){
-      await chrome.scripting.executeScript({target: {tabId: tab.id}, files});
-    }
+    // An early injection can land in the tab's initial about:blank document,
+    // which the real navigation then replaces — taking the harvester with
+    // it. So ask the LIVE document whether a harvester is running rather
+    // than trusting that executeScript resolved.
+    if (early) await early;
+    const [{result: alive} = {}] = await chrome.scripting.executeScript({
+      target: {tabId: tab.id},
+      func: () => !!window.__slHarvesting,
+    }).catch(() => []);
+    if (!alive) await chrome.scripting.executeScript({target: {tabId: tab.id}, files});
     const msg = await harvest.promise;
     return msg.payload; // {service, items:[{title,url,tv}]}
   } catch (err){
