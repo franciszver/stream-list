@@ -55,11 +55,15 @@ async function setStatus(service, patch){
   await chrome.storage.local.set({status});
 }
 
-function waitForLoad(tabId, timeoutMs = 30000){
-  return new Promise((resolve, reject) => {
+// Resolves when the tab reports "complete" — or when we give up waiting.
+// A slow load is not fatal: heavy pages (Fandango rendering ~1000 tiles)
+// can stay busy long past the point where their content is scrapeable,
+// and the harvester has its own timeout, so proceed either way.
+function waitForLoad(tabId, timeoutMs = 45000){
+  return new Promise((resolve) => {
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
-      reject(new Error('page load timed out'));
+      chrome.tabs.get(tabId).then(resolve, () => resolve(null));
     }, timeoutMs);
     const done = tab => { clearTimeout(timer); chrome.tabs.onUpdated.removeListener(listener); resolve(tab); };
     const listener = (id, info, tab) => { if (id === tabId && info.status === 'complete') done(tab); };
@@ -102,7 +106,7 @@ async function harvestPage(service, page){
     const early = cfg.injectEarly
       ? chrome.scripting.executeScript({target: {tabId: tab.id}, files, injectImmediately: true}).catch(() => null)
       : null;
-    await waitForLoad(tab.id);
+    await waitForLoad(tab.id, cfg.loadTimeoutMs);
     // Give SPAs a moment to render/redirect after "complete".
     await new Promise(r => setTimeout(r, 2500));
     const now = await chrome.tabs.get(tab.id);

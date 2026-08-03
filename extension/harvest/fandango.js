@@ -45,9 +45,15 @@
     return m ? +m[1] : null;
   };
 
-  // Wait for the page to actually load before scrolling it around.
+  // Prefer to scroll only after load, but never block on it: with ~1000
+  // tiles requested the load event can be a long time coming, and the
+  // observer above is already collecting in the meantime.
   if (document.readyState !== 'complete'){
-    await new Promise(r => window.addEventListener('load', r, {once: true}));
+    await new Promise(r => {
+      const go = () => { clearTimeout(t); r(); };
+      const t = setTimeout(go, 15000);
+      window.addEventListener('load', go, {once: true});
+    });
   }
   await new Promise(r => setTimeout(r, 1500));
 
