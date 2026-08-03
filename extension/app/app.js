@@ -7,6 +7,10 @@ const SVC = {
   google:   {name:'Google Play',   letter:'G', cls:'google',   color:'var(--google)'},
   amazon:   {name:'Prime Video',   letter:'P', cls:'amazon',   color:'var(--amazon)'},
   fandango: {name:'Fandango at Home', letter:'F', cls:'fandango', color:'var(--fandango)'},
+  // Manual-entry only: Microsoft closed its store in 2025 and purchases
+  // are visible solely in the Windows/Xbox app, so nothing can sync them.
+  microsoft: {name:'Microsoft Movies & TV', letter:'M', cls:'microsoft', color:'var(--microsoft)',
+    search: t => 'https://www.microsoft.com/en-us/movies-and-tv?q=' + encodeURIComponent(t)},
 };
 const LS = {
   get(k,d){ try{ return JSON.parse(localStorage.getItem('sl_'+k)) ?? d }catch(e){ return d } },
@@ -114,7 +118,8 @@ function stats(){
   const perTotal = Object.values(per).reduce((a,b)=>a+b,0) || 1;
   const bar = Object.entries(per).map(([s,n]) =>
     `<i style="width:${(n/perTotal*100).toFixed(1)}%;background:${SVC[s].color}" title="${esc(SVC[s].name)}: ${n}"></i>`).join('');
-  const svcTiles = Object.entries(per).map(([s,n]) =>
+  // Only show stores you actually own something on.
+  const svcTiles = Object.entries(per).filter(([,n]) => n > 0).map(([s,n]) =>
     `<div class="tile"><div class="n">${n}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${SVC[s].color}"></span> ${esc(SVC[s].name)}</div></div>`).join('');
   el.innerHTML = `
     <div class="tile"><div class="n">${total}</div><div class="l">titles owned</div>
@@ -329,6 +334,17 @@ const U = {
     const out = {streamList:1, exported: new Date().toISOString().slice(0,10), library, flags, posters, meta};
     U.dl('stream-list-backup.json', JSON.stringify(out, null, 1));
   },
+  // Manually owned title: same merge path as a harvest, so it dedupes
+  // against what you already own instead of creating a twin.
+  add(){
+    const title = document.getElementById('addTitle').value.trim();
+    if (!title){ alert('Enter a title first'); return; }
+    const service = document.getElementById('addService').value;
+    const tv = document.getElementById('addType').value === 'tv';
+    const search = SVC[service].search || (t => 'https://www.google.com/search?q=' + encodeURIComponent(t));
+    U.mergeBookmarklet({service, items: [{title, url: search(title), tv}]});
+    document.getElementById('addTitle').value = '';
+  },
   resetFlags(){ if(confirm('Clear all watched/watch-next flags?')){ flags={}; LS.set('flags',flags); render(); } },
   dl(name, text){
     const a = document.createElement('a');
@@ -339,6 +355,11 @@ const U = {
 document.getElementById('updateBtn').onclick = U.open;
 document.getElementById('updClose').onclick = U.close;
 document.getElementById('mergeBtn').onclick = U.merge;
+document.getElementById('addBtn').onclick = U.add;
+document.getElementById('addTitle').addEventListener('keydown', ev => { if (ev.key === 'Enter') U.add(); });
+document.getElementById('addService').innerHTML =
+  Object.entries(SVC).map(([s,d]) => `<option value="${esc(s)}">${esc(d.name)}</option>`).join('');
+document.getElementById('addService').value = 'microsoft';
 document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
 document.getElementById('exportLibBtn').onclick = U.exportLib;
 document.getElementById('exportBackupBtn').onclick = U.exportBackup;

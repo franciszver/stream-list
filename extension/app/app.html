@@ -9,14 +9,14 @@
   color-scheme: light dark;
   --bg:#f6f5f2; --surface:#ffffff; --surface2:#efede8; --ink:#1a1a19; --ink2:#5c5b54; --ink3:#8a897f;
   --line:#e2e0d8; --accent:#2a78d6;
-  --google:#2a78d6; --amazon:#eb6834; --fandango:#1baf7a;
+  --google:#2a78d6; --amazon:#eb6834; --fandango:#1baf7a; --microsoft:#7a52c7;
   --good:#008300; --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 14px rgba(0,0,0,.06);
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#121211; --surface:#1a1a19; --surface2:#242422; --ink:#ffffff; --ink2:#c3c2b7; --ink3:#8a897f;
     --line:#33322f; --accent:#3987e5;
-    --google:#3987e5; --amazon:#d95926; --fandango:#199e70;
+    --google:#3987e5; --amazon:#d95926; --fandango:#199e70; --microsoft:#8f6ad6;
     --shadow:0 1px 3px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
   }
 }
@@ -59,7 +59,7 @@ main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
 .cy{color:var(--ink3);font-size:11.5px}
 .svcs{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto}
 .svc{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10.5px;font-weight:700;text-decoration:none;cursor:pointer}
-.svc.google{background:var(--google)}.svc.amazon{background:var(--amazon)}.svc.fandango{background:var(--fandango)}
+.svc.google{background:var(--google)}.svc.amazon{background:var(--amazon)}.svc.fandango{background:var(--fandango)}.svc.microsoft{background:var(--microsoft)}
 .flags{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;pointer-events:none}
 .flag{pointer-events:auto;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:7px;font-size:12px;padding:3px 7px;cursor:pointer;backdrop-filter:blur(4px)}
 .flag.on{background:var(--good)}
@@ -159,6 +159,15 @@ footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-s
       <a href="https://athome.fandango.com/content/browse/mymovies" target="_blank">Fandango movies</a></p>
     <textarea id="pasteBox" placeholder='Paste bookmarklet JSON here…'></textarea>
     </div>
+    <h3>Add a title by hand</h3>
+    <p>For anything the sync can't reach — Microsoft Movies &amp; TV (store closed in 2025; purchases live only in the Windows/Xbox app), or a store you use that isn't listed.</p>
+    <div class="rowbtns">
+      <input id="addTitle" placeholder="Title (year optional)" style="flex:2;min-width:160px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--ink)">
+      <select id="addService"></select>
+      <select id="addType"><option value="movie">Movie</option><option value="tv">TV</option></select>
+      <button class="ctl" id="addBtn">Add</button>
+    </div>
+    <h3>Bulk merge</h3>
     <div class="rowbtns">
       <button class="ctl" id="mergeBtn">Merge into library</button>
       <button class="ctl" id="importBtn">Import</button>
