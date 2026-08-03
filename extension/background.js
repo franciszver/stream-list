@@ -76,24 +76,31 @@ function waitForLoad(tabId, timeoutMs = 45000){
 }
 
 // Resolve when the harvester in tabId sends {from:'harvest', type:'done'}.
+// Returns {promise, cancel}: cancel detaches the listener, which matters
+// on the login path — an early-injected harvester keeps reporting
+// progress, and those updates would overwrite the "login needed" status
+// the user needs to see.
 function waitForHarvest(tabId, service, timeoutMs){
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
+  let cancel = () => {};
+  const promise = new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
       chrome.runtime.onMessage.removeListener(listener);
-      reject(new Error('harvest timed out'));
-    }, timeoutMs);
+    };
+    const timer = setTimeout(() => { cleanup(); reject(new Error('harvest timed out')); }, timeoutMs);
     const listener = (msg, sender) => {
       if (sender.tab?.id !== tabId || msg?.from !== 'harvest') return;
       if (msg.type === 'progress'){
         setStatus(service, {state: 'running', found: msg.found, expected: msg.expected ?? null});
       } else if (msg.type === 'done'){
-        clearTimeout(timer);
-        chrome.runtime.onMessage.removeListener(listener);
+        cleanup();
         resolve(msg);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
+    cancel = () => { cleanup(); reject(new Error('cancelled')); };
   });
+  return {promise, cancel};
 }
 
 async function harvestPage(service, page){
@@ -103,8 +110,8 @@ async function harvestPage(service, page){
   const files = ['lib/collect.js', cfg.script];
   try {
     // Listen before injecting so an early harvester can't finish unheard.
-    const done = waitForHarvest(tab.id, service, cfg.timeoutMs);
-    done.catch(() => {}); // don't leave this rejection unhandled if we bail below
+    const harvest = waitForHarvest(tab.id, service, cfg.timeoutMs);
+    harvest.promise.catch(() => {}); // we may cancel/bail below
     // Some pages must be watched from before they finish rendering.
     const early = cfg.injectEarly
       ? chrome.scripting.executeScript({target: {tabId: tab.id}, files, injectImmediately: true}).catch(() => null)
@@ -114,6 +121,7 @@ async function harvestPage(service, page){
     await new Promise(r => setTimeout(r, 2500));
     const now = await chrome.tabs.get(tab.id);
     if (cfg.loginHosts.some(h => (now.url || '').includes(h))){
+      harvest.cancel(); // stop a stray early harvester from overwriting this
       await setStatus(service, {state: 'login', found: 0});
       keepOpen = true; // leave the tab open so the user can sign in
       return null;
@@ -123,7 +131,7 @@ async function harvestPage(service, page){
     if (!(early && await early)){
       await chrome.scripting.executeScript({target: {tabId: tab.id}, files});
     }
-    const msg = await done;
+    const msg = await harvest.promise;
     return msg.payload; // {service, items:[{title,url,tv}]}
   } catch (err){
     await setStatus(service, {state: 'error', error: String(err.message || err)});

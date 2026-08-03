@@ -317,6 +317,14 @@ function wantPoster(e, img){
   if (posters[e.id] !== undefined){ if (posters[e.id]) img.src = posters[e.id]; return; }
   pQueue.push([e, img]); pump();
 }
+// Store listings decorate titles ("Movie (4K UHD)", "Film [Extended Edition]",
+// "Show - Season 1"), which poster lookups match badly or not at all.
+function searchTitle(t){
+  return String(t || '')
+    .replace(/[\(\[][^)\]]*\b(4k|uhd|hd|sd|extended|unrated|theatrical|director'?s|special|collector'?s|ultimate|deluxe|anniversary|remastered|edition|version|cut|dubbed|subtitled|bundle)\b[^)\]]*[\)\]]/gi, ' ')
+    .replace(/\s*[-–—:]\s*(4k|uhd|hd)\b.*$/i, ' ')
+    .replace(/\s+/g, ' ').trim() || String(t || '');
+}
 async function pump(){
   if (pBusy) return; pBusy = true;
   while (pQueue.length){
@@ -324,38 +332,42 @@ async function pump(){
     if (posters[e.id] !== undefined){ if(posters[e.id]) img.src = posters[e.id]; continue; }
     try {
       const key = LS.get('tmdb', '');
+      const st = searchTitle(e.title);
       let url = '', year = null, genre = null;
       try {
       if (key){
         const kind = e.type==='tv' ? 'tv' : 'movie';
-        const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(e.title)}${e.year?`&year=${e.year}`:''}`);
+        const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(st)}${e.year?`&year=${e.year}`:''}`);
         const j = await r.json();
         const hit = (j.results||[])[0];
         if (hit){ url = hit.poster_path ? 'https://image.tmdb.org/t/p/w342'+hit.poster_path : '';
           year = (hit.release_date||hit.first_air_date||'').slice(0,4)||null; }
       } else {
         const kind = e.type==='tv' ? 'tvShow' : 'movie';
-        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(e.title)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
+        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(st)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
         const j = await r.json();
         let hits = j.results||[];
-        const tnorm = normq(e.title);
+        const tnorm = normq(st);
         let hit = hits.find(h => normq(h.trackName||h.collectionName||'')===tnorm) || hits[0];
         if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
         if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
           year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
       }
       } catch(err){ /* TMDB/iTunes unreachable (e.g. iTunes blocks file:// origins) — fall through to Wikipedia */ }
-      if (!url) url = SLMerge.storePoster(e); // artwork from the store itself
-      if (!url){
-        // Keyless fallback: Wikipedia lead images. Film/TV posters are
-        // fair-use, so pilicense=any is required; origin=* enables CORS
-        // from any origin, including file:// and chrome-extension:.
-        const q = encodeURIComponent(`${e.title} ${e.type==='tv'?'TV series':'film'}`);
-        const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${q}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=342&pilicense=any&format=json&origin=*`);
+      // Keyless fallback: Wikipedia lead images. Film/TV posters are
+      // fair-use, so pilicense=any is required; origin=* enables CORS from
+      // any origin, including file:// and chrome-extension:. Narrow query
+      // first (year disambiguates remakes), widening only if it misses.
+      const kindWord = e.type==='tv' ? 'TV series' : 'film';
+      for (const q of [e.year ? `${st} ${e.year} ${kindWord}` : null, `${st} ${kindWord}`, st]){
+        if (url || !q) continue;
+        const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=342&pilicense=any&format=json&origin=*`);
         const j = await r.json();
         const page = Object.values(j.query?.pages || {})[0];
         url = page?.thumbnail?.source || '';
       }
+      // Last resort: whatever artwork the store itself showed.
+      if (!url) url = SLMerge.storePoster(e);
       posters[e.id] = url || '';
       if (year || genre){ meta[e.id] = {...(meta[e.id]||{}), ...(year?{year:+year}:{}), ...(genre?{genre}:{})}; }
       if (url) img.src = url;
