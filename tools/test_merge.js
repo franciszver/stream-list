@@ -168,13 +168,13 @@ test('mergeLibraries: id-less incoming still dedupes against existing by title',
 // --- store artwork fallback -------------------------------------------
 
 test('storePoster derives Fandango artwork from the details url', () => {
-  const e = {services: {fandango: [{url: 'https://athome.fandango.com/content/browse/details/rudy/16412'}]}};
-  assert.strictEqual(SLMerge.storePoster(e), 'https://images2.vudu.com/poster2/16412-194');
+  const e = {services: {fandango: [{url: 'https://athome.fandango.com/content/browse/details/example-film/12345'}]}};
+  assert.strictEqual(SLMerge.storePoster(e), 'https://images2.vudu.com/poster2/12345-194');
 });
 
 test('storePoster prefers artwork captured at harvest time', () => {
   const e = {poster: 'https://cdn.example/x.jpg',
-    services: {fandango: [{url: 'https://athome.fandango.com/content/browse/details/rudy/16412'}]}};
+    services: {fandango: [{url: 'https://athome.fandango.com/content/browse/details/example-film/12345'}]}};
   assert.strictEqual(SLMerge.storePoster(e), 'https://cdn.example/x.jpg');
 });
 
