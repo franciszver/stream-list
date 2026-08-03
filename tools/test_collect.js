@@ -5,6 +5,7 @@
 // fake DOM without throwing.
 // Run: node tools/test_collect.js
 'use strict';
+// NOTE: ownedLinks() scoping tests live at the bottom of this file.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -45,5 +46,49 @@ test('amazon() runs against an empty DOM and returns []', () => {
 test('fandango() runs against an empty DOM and returns []', () => {
   assert.deepStrictEqual(SLCollect.fandango(), []);
 });
+
+// --- ownedLinks() scoping ---------------------------------------------
+// Store pages put wishlist / "recommended" rails next to the owned grid,
+// with identical-looking links. Only the grid's links may be harvested.
+//
+// Fake DOM: an element is {parentElement, kids}; contains() walks down.
+function el(parent){
+  const e = {parentElement: parent || null, kids: []};
+  if (parent) parent.kids.push(e);
+  e.contains = x => { for (let p = x; p; p = p.parentElement) if (p === e) return true; return false; };
+  return e;
+}
+function page({owned, rail}){
+  const root = el(null), grid = el(root), sidebar = el(root);
+  const links = [];
+  for (let i = 0; i < owned; i++) links.push(Object.assign(el(grid), {href: '/owned/' + i, tag: 'owned'}));
+  for (let i = 0; i < rail; i++) links.push(Object.assign(el(sidebar), {href: '/rail/' + i, tag: 'rail'}));
+  global.document = {querySelectorAll: () => links};
+  return links;
+}
+
+test('ownedLinks keeps the grid and drops a recommendation rail', () => {
+  page({owned: 200, rail: 6});
+  const got = SLCollect.ownedLinks('a');
+  assert.strictEqual(got.length, 200);
+  assert.ok(got.every(a => a.tag === 'owned'));
+});
+
+test('ownedLinks keeps everything when no container dominates', () => {
+  page({owned: 10, rail: 9}); // 10/19 — below the 70% bar, so don't guess
+  assert.strictEqual(SLCollect.ownedLinks('a').length, 19);
+});
+
+test('ownedLinks leaves small pages alone', () => {
+  page({owned: 4, rail: 2});
+  assert.strictEqual(SLCollect.ownedLinks('a').length, 6);
+});
+
+test('ownedLinks is a no-op when every link is in the grid', () => {
+  page({owned: 50, rail: 0});
+  assert.strictEqual(SLCollect.ownedLinks('a').length, 50);
+});
+
+global.document = {querySelectorAll: () => []};
 
 console.log('\n' + n + ' tests passed');

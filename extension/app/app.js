@@ -160,24 +160,24 @@ async function pump(){
       const st = searchTitle(e.title);
       let url = '', year = null, genre = null;
       try {
-      if (key){
-        const kind = e.type==='tv' ? 'tv' : 'movie';
-        const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(st)}${e.year?`&year=${e.year}`:''}`);
-        const j = await r.json();
-        const hit = (j.results||[])[0];
-        if (hit){ url = hit.poster_path ? 'https://image.tmdb.org/t/p/w342'+hit.poster_path : '';
-          year = (hit.release_date||hit.first_air_date||'').slice(0,4)||null; }
-      } else {
-        const kind = e.type==='tv' ? 'tvShow' : 'movie';
-        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(st)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
-        const j = await r.json();
-        let hits = j.results||[];
-        const tnorm = normq(st);
-        let hit = hits.find(h => normq(h.trackName||h.collectionName||'')===tnorm) || hits[0];
-        if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
-        if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
-          year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
-      }
+        if (key){
+          const kind = e.type==='tv' ? 'tv' : 'movie';
+          const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(st)}${e.year?`&year=${e.year}`:''}`);
+          const j = await r.json();
+          const hit = (j.results||[])[0];
+          if (hit){ url = hit.poster_path ? 'https://image.tmdb.org/t/p/w342'+hit.poster_path : '';
+            year = (hit.release_date||hit.first_air_date||'').slice(0,4)||null; }
+        } else {
+          const kind = e.type==='tv' ? 'tvShow' : 'movie';
+          const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(st)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
+          const j = await r.json();
+          let hits = j.results||[];
+          const tnorm = normq(st);
+          let hit = hits.find(h => normq(h.trackName||h.collectionName||'')===tnorm) || hits[0];
+          if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
+          if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
+            year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
+        }
       } catch(err){ /* TMDB/iTunes unreachable (e.g. iTunes blocks file:// origins) — fall through to Wikipedia */ }
       // Keyless fallback: Wikipedia lead images. Film/TV posters are
       // fair-use, so pilicense=any is required; origin=* enables CORS from
@@ -289,10 +289,20 @@ function detail(e){
         <div class="rowbtns">
           <button class="ctl" id="dW">${f.w?'✓ Watched':'Mark watched'}</button>
           <button class="ctl" id="dQ">${f.q?'★ In watch-next':'Add to watch next'}</button>
+          <button class="ctl" id="dRm" title="I don't actually own this">Remove</button>
         </div>
       </div>
     </div></div>`;
   dlg.querySelector('.x').onclick = () => dlg.close();
+  // A sync only ever adds, and store pages can surface titles you don't own
+  // (wishlist/recommended rails), so removal has to be possible by hand.
+  dlg.querySelector('#dRm').onclick = () => {
+    if (!confirm(`Remove "${e.title}" from your library?`)) return;
+    library = library.filter(x => x.id !== e.id);
+    LS.set('library', library);
+    delete posters[e.id]; LS.set('posters', posters);
+    dlg.close(); rebuild(); render();
+  };
   dlg.querySelector('#dW').onclick = ()=>{ f.w=f.w?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
   dlg.querySelector('#dQ').onclick = ()=>{ f.q=f.q?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
   dlg.showModal();

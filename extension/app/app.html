@@ -186,6 +186,25 @@ footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-s
 // no scrolling. Callers own the scroll/retry loop and dedupe.
 'use strict';
 const SLCollect = (() => {
+  // Store pages surround the owned-titles grid with rails — "recommended
+  // for you", wishlist, "because you watched" — whose links are shaped
+  // exactly like owned ones. Keep only the links inside the element that
+  // holds the decisive majority of them (the grid). If no element
+  // dominates, keep everything: a few extras beat losing the library.
+  function ownedLinks(selector){
+    const links = [...document.querySelectorAll(selector)];
+    if (links.length < 8) return links;
+    const count = new Map();
+    for (const a of links){
+      for (let p = a.parentElement; p; p = p.parentElement) count.set(p, (count.get(p) || 0) + 1);
+    }
+    const need = links.length * 0.7;
+    const cands = [...count.entries()].filter(([, n]) => n >= need).map(([el]) => el);
+    // The grid is the deepest qualifying container: it holds no other one.
+    const grid = cands.find(el => !cands.some(o => o !== el && el.contains(o)));
+    return grid ? links.filter(a => grid.contains(a)) : links;
+  }
+
   // Artwork shown on the store's own tile, used as a poster fallback.
   // Lazy-loading grids often park a placeholder in src until the tile is
   // near the viewport, so prefer the real URL in data-src/srcset.
@@ -202,7 +221,7 @@ const SLCollect = (() => {
   // Google Play library page: one scan of visible anchors.
   function google(){
     const out = [];
-    document.querySelectorAll('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
+    ownedLinks('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
       const u = new URL(a.href, location.origin);
       let t = a.textContent.trim()
         .replace(/(\d\.\d)?star.*$/, '')
@@ -218,7 +237,7 @@ const SLCollect = (() => {
   // Prime Video library page (movies or tv, per isTv).
   function amazon(isTv){
     const out = [];
-    document.querySelectorAll('a[href*="/gp/video/detail/"]').forEach(a => {
+    ownedLinks('a[href*="/gp/video/detail/"]').forEach(a => {
       const m = a.href.match(/\/gp\/video\/detail\/([A-Z0-9]+)/);
       if (!m) return;
       const t = (a.getAttribute('aria-label') || a.textContent).trim();
@@ -231,7 +250,7 @@ const SLCollect = (() => {
   // Fandango at Home "My Movies" / "My TV" pages.
   function fandango(isTv){
     const out = [];
-    document.querySelectorAll('a[href*="/content/browse/details/"]').forEach(a => {
+    ownedLinks('a[href*="/content/browse/details/"]').forEach(a => {
       const m = (a.getAttribute('href') || '').match(/\/content\/browse\/details\/([^/]+)\/(\d+)/);
       if (!m) return;
       const img = a.querySelector('img');
@@ -248,7 +267,7 @@ const SLCollect = (() => {
     return out;
   }
 
-  return {google, amazon, fandango};
+  return {google, amazon, fandango, ownedLinks};
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SLCollect;
 

@@ -314,6 +314,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SLMerge;
 // no scrolling. Callers own the scroll/retry loop and dedupe.
 'use strict';
 const SLCollect = (() => {
+  // Store pages surround the owned-titles grid with rails — "recommended
+  // for you", wishlist, "because you watched" — whose links are shaped
+  // exactly like owned ones. Keep only the links inside the element that
+  // holds the decisive majority of them (the grid). If no element
+  // dominates, keep everything: a few extras beat losing the library.
+  function ownedLinks(selector){
+    const links = [...document.querySelectorAll(selector)];
+    if (links.length < 8) return links;
+    const count = new Map();
+    for (const a of links){
+      for (let p = a.parentElement; p; p = p.parentElement) count.set(p, (count.get(p) || 0) + 1);
+    }
+    const need = links.length * 0.7;
+    const cands = [...count.entries()].filter(([, n]) => n >= need).map(([el]) => el);
+    // The grid is the deepest qualifying container: it holds no other one.
+    const grid = cands.find(el => !cands.some(o => o !== el && el.contains(o)));
+    return grid ? links.filter(a => grid.contains(a)) : links;
+  }
+
   // Artwork shown on the store's own tile, used as a poster fallback.
   // Lazy-loading grids often park a placeholder in src until the tile is
   // near the viewport, so prefer the real URL in data-src/srcset.
@@ -330,7 +349,7 @@ const SLCollect = (() => {
   // Google Play library page: one scan of visible anchors.
   function google(){
     const out = [];
-    document.querySelectorAll('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
+    ownedLinks('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
       const u = new URL(a.href, location.origin);
       let t = a.textContent.trim()
         .replace(/(\d\.\d)?star.*$/, '')
@@ -346,7 +365,7 @@ const SLCollect = (() => {
   // Prime Video library page (movies or tv, per isTv).
   function amazon(isTv){
     const out = [];
-    document.querySelectorAll('a[href*="/gp/video/detail/"]').forEach(a => {
+    ownedLinks('a[href*="/gp/video/detail/"]').forEach(a => {
       const m = a.href.match(/\/gp\/video\/detail\/([A-Z0-9]+)/);
       if (!m) return;
       const t = (a.getAttribute('aria-label') || a.textContent).trim();
@@ -359,7 +378,7 @@ const SLCollect = (() => {
   // Fandango at Home "My Movies" / "My TV" pages.
   function fandango(isTv){
     const out = [];
-    document.querySelectorAll('a[href*="/content/browse/details/"]').forEach(a => {
+    ownedLinks('a[href*="/content/browse/details/"]').forEach(a => {
       const m = (a.getAttribute('href') || '').match(/\/content\/browse\/details\/([^/]+)\/(\d+)/);
       if (!m) return;
       const img = a.querySelector('img');
@@ -376,7 +395,7 @@ const SLCollect = (() => {
     return out;
   }
 
-  return {google, amazon, fandango};
+  return {google, amazon, fandango, ownedLinks};
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SLCollect;
 
@@ -544,24 +563,24 @@ async function pump(){
       const st = searchTitle(e.title);
       let url = '', year = null, genre = null;
       try {
-      if (key){
-        const kind = e.type==='tv' ? 'tv' : 'movie';
-        const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(st)}${e.year?`&year=${e.year}`:''}`);
-        const j = await r.json();
-        const hit = (j.results||[])[0];
-        if (hit){ url = hit.poster_path ? 'https://image.tmdb.org/t/p/w342'+hit.poster_path : '';
-          year = (hit.release_date||hit.first_air_date||'').slice(0,4)||null; }
-      } else {
-        const kind = e.type==='tv' ? 'tvShow' : 'movie';
-        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(st)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
-        const j = await r.json();
-        let hits = j.results||[];
-        const tnorm = normq(st);
-        let hit = hits.find(h => normq(h.trackName||h.collectionName||'')===tnorm) || hits[0];
-        if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
-        if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
-          year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
-      }
+        if (key){
+          const kind = e.type==='tv' ? 'tv' : 'movie';
+          const r = await fetch(`https://api.themoviedb.org/3/search/${kind}?api_key=${key}&query=${encodeURIComponent(st)}${e.year?`&year=${e.year}`:''}`);
+          const j = await r.json();
+          const hit = (j.results||[])[0];
+          if (hit){ url = hit.poster_path ? 'https://image.tmdb.org/t/p/w342'+hit.poster_path : '';
+            year = (hit.release_date||hit.first_air_date||'').slice(0,4)||null; }
+        } else {
+          const kind = e.type==='tv' ? 'tvShow' : 'movie';
+          const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(st)}&media=${e.type==='tv'?'tvShow':'movie'}&entity=${kind}&limit=5`);
+          const j = await r.json();
+          let hits = j.results||[];
+          const tnorm = normq(st);
+          let hit = hits.find(h => normq(h.trackName||h.collectionName||'')===tnorm) || hits[0];
+          if (e.year) { const hy = hits.find(h => (h.releaseDate||'').startsWith(String(e.year)) && normq(h.trackName||h.collectionName||'').includes(tnorm.slice(0,10))); if (hy) hit = hy; }
+          if (hit){ url = (hit.artworkUrl100||'').replace('100x100','342x513');
+            year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
+        }
       } catch(err){ /* TMDB/iTunes unreachable (e.g. iTunes blocks file:// origins) — fall through to Wikipedia */ }
       // Keyless fallback: Wikipedia lead images. Film/TV posters are
       // fair-use, so pilicense=any is required; origin=* enables CORS from
@@ -673,10 +692,20 @@ function detail(e){
         <div class="rowbtns">
           <button class="ctl" id="dW">${f.w?'✓ Watched':'Mark watched'}</button>
           <button class="ctl" id="dQ">${f.q?'★ In watch-next':'Add to watch next'}</button>
+          <button class="ctl" id="dRm" title="I don't actually own this">Remove</button>
         </div>
       </div>
     </div></div>`;
   dlg.querySelector('.x').onclick = () => dlg.close();
+  // A sync only ever adds, and store pages can surface titles you don't own
+  // (wishlist/recommended rails), so removal has to be possible by hand.
+  dlg.querySelector('#dRm').onclick = () => {
+    if (!confirm(`Remove "${e.title}" from your library?`)) return;
+    library = library.filter(x => x.id !== e.id);
+    LS.set('library', library);
+    delete posters[e.id]; LS.set('posters', posters);
+    dlg.close(); rebuild(); render();
+  };
   dlg.querySelector('#dW').onclick = ()=>{ f.w=f.w?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
   dlg.querySelector('#dQ').onclick = ()=>{ f.q=f.q?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
   dlg.showModal();

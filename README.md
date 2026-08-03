@@ -49,8 +49,10 @@ tools/
   package.py            ← extension/ → dist/stream-list-<version>.zip (Web Store)
   make_icons.py         ← regenerates extension/icons/
   merge.py              ← data/* scans → library.json (power-user pipeline)
+  test_build.py         ← asserts the extension build stays CSP-safe
   test_merge.js         ← node tests for merge logic
   test_collect.js       ← node tests for the DOM collectors
+  test_fandango.js      ← runs the Fandango harvester against a stubbed page
 docs/store-listing.md   ← Chrome Web Store listing copy + permission justifications
 ```
 
@@ -61,7 +63,7 @@ The app UI lives in `index.template.html` — **never edit `index.html` or `exte
 ```
 python tools/build.py            # → index.html + extension/app/ (sample data)
 python tools/test_build.py       # CSP/extraction regression checks
-node tools/test_merge.js && node tools/test_collect.js
+node tools/test_merge.js && node tools/test_collect.js && node tools/test_fandango.js
 python tools/package.py          # → dist/stream-list-<version>.zip
 ```
 
