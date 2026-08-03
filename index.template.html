@@ -344,6 +344,7 @@ async function pump(){
           year = (hit.releaseDate||'').slice(0,4)||null; genre = hit.primaryGenreName||null; }
       }
       } catch(err){ /* TMDB/iTunes unreachable (e.g. iTunes blocks file:// origins) — fall through to Wikipedia */ }
+      if (!url) url = SLMerge.storePoster(e); // artwork from the store itself
       if (!url){
         // Keyless fallback: Wikipedia lead images. Film/TV posters are
         // fair-use, so pilicense=any is required; origin=* enables CORS

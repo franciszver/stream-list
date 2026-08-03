@@ -6,6 +6,19 @@
 // no scrolling. Callers own the scroll/retry loop and dedupe.
 'use strict';
 const SLCollect = (() => {
+  // Artwork shown on the store's own tile, used as a poster fallback.
+  // Lazy-loading grids often park a placeholder in src until the tile is
+  // near the viewport, so prefer the real URL in data-src/srcset.
+  function artwork(a){
+    const img = a.querySelector('img');
+    if (!img) return '';
+    const src = img.getAttribute('data-src') || img.getAttribute('src') || '';
+    if (/^https?:/.test(src) && !/^data:/.test(src)) return src;
+    const set = img.getAttribute('srcset') || '';
+    const first = set.split(',')[0].trim().split(' ')[0];
+    return /^https?:/.test(first) ? first : '';
+  }
+
   // Google Play library page: one scan of visible anchors.
   function google(){
     const out = [];
@@ -17,7 +30,7 @@ const SLCollect = (() => {
         .trim();
       if (!t && a.getAttribute('aria-label')) t = a.getAttribute('aria-label').trim();
       if (!t) return;
-      out.push({key: u.pathname, title: t, url: u.origin + u.pathname, tv: u.pathname.includes('/tv/')});
+      out.push({key: u.pathname, title: t, url: u.origin + u.pathname, tv: u.pathname.includes('/tv/'), img: artwork(a)});
     });
     return out;
   }
@@ -30,7 +43,7 @@ const SLCollect = (() => {
       if (!m) return;
       const t = (a.getAttribute('aria-label') || a.textContent).trim();
       if (!t) return;
-      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv});
+      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv, img: artwork(a)});
     });
     return out;
   }
@@ -49,6 +62,7 @@ const SLCollect = (() => {
         title: t,
         url: 'https://athome.fandango.com/content/browse/details/' + m[1] + '/' + m[2],
         tv: !!isTv,
+        img: artwork(a),
       });
     });
     return out;

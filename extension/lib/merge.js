@@ -24,7 +24,7 @@ const SLMerge = (() => {
   function makeEntry(it, service){
     const tv = !!it.tv;
     const key = keyOf(it.title, tv);
-    return {
+    const e = {
       id: key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       title: it.title.replace(/\s*\(\d{4}\)\s*/, '').trim(),
       type: tv ? 'tv' : 'movie',
@@ -32,6 +32,22 @@ const SLMerge = (() => {
       services: {[service]: [{url: it.url}]},
       serviceCount: 1,
     };
+    if (it.img) e.poster = it.img; // artwork straight off the store's tile
+    return e;
+  }
+  // Artwork the store itself can give us, used when the poster lookups
+  // (iTunes/Wikipedia) come up empty. Fandango's CDN serves a poster for
+  // any content id — and the id is already in the URL we stored, so this
+  // works for titles harvested before artwork capture existed.
+  // Only -49 (thumb) and -194 exist; anything else 404s.
+  function storePoster(entry){
+    if (entry.poster) return entry.poster;
+    const links = (entry.services || {}).fandango || [];
+    for (const l of links){
+      const m = (l.url || '').match(/\/details\/[^/]+\/(\d+)/);
+      if (m) return 'https://images2.vudu.com/poster2/' + m[1] + '-194';
+    }
+    return '';
   }
   // Merge one payload {service, items:[{title,url,tv}]} into byNorm
   // (keyOf -> entry). New titles become entries; known titles gain a
@@ -100,6 +116,6 @@ const SLMerge = (() => {
     }
     return {items, added, linked};
   }
-  return {norm, keyOf, parseYear, makeEntry, mergeInto, buildLibrary, mergeLibraries};
+  return {norm, keyOf, parseYear, makeEntry, storePoster, mergeInto, buildLibrary, mergeLibraries};
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SLMerge;

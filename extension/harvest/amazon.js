@@ -12,7 +12,7 @@
   const collect = () => {
     SLCollect.amazon(isTv).forEach(it => {
       if (found.has(it.key)) return;
-      found.set(it.key, {title: it.title, url: it.url, tv: it.tv});
+      found.set(it.key, {title: it.title, url: it.url, tv: it.tv, img: it.img});
     });
   };
 

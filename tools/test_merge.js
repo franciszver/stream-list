@@ -165,4 +165,31 @@ test('mergeLibraries: id-less incoming still dedupes against existing by title',
   assert.strictEqual(res.items[0].serviceCount, 2);
 });
 
+// --- store artwork fallback -------------------------------------------
+
+test('storePoster derives Fandango artwork from the details url', () => {
+  const e = {services: {fandango: [{url: 'https://athome.fandango.com/content/browse/details/rudy/16412'}]}};
+  assert.strictEqual(SLMerge.storePoster(e), 'https://images2.vudu.com/poster2/16412-194');
+});
+
+test('storePoster prefers artwork captured at harvest time', () => {
+  const e = {poster: 'https://cdn.example/x.jpg',
+    services: {fandango: [{url: 'https://athome.fandango.com/content/browse/details/rudy/16412'}]}};
+  assert.strictEqual(SLMerge.storePoster(e), 'https://cdn.example/x.jpg');
+});
+
+test('storePoster returns empty when nothing is derivable', () => {
+  assert.strictEqual(SLMerge.storePoster({services: {google: [{url: 'https://play.google.com/store/movies/details?id=x'}]}}), '');
+  assert.strictEqual(SLMerge.storePoster({}), '');
+});
+
+test('makeEntry keeps artwork harvested from the store tile', () => {
+  const e = SLMerge.makeEntry({title: 'X', url: 'https://u', img: 'https://img/1.jpg'}, 'amazon');
+  assert.strictEqual(e.poster, 'https://img/1.jpg');
+});
+
+test('makeEntry omits poster when the tile had no artwork', () => {
+  assert.strictEqual('poster' in SLMerge.makeEntry({title: 'X', url: 'https://u'}, 'amazon'), false);
+});
+
 console.log(`\n${n} tests passed`);

@@ -20,9 +20,12 @@ const ok = (name, cond, extra) => {
   else { console.log('  FAIL ' + name + (extra ? ' — ' + extra : '')); fail++; }
 };
 
-const tile = (id, title) => ({
+const tile = (id, title, img) => ({
   getAttribute: a => a === 'href' ? `/content/browse/details/${title.toLowerCase().replace(/\W+/g, '-')}/${id}` : null,
-  querySelector: () => ({alt: title}),
+  querySelector: () => ({
+    alt: title,
+    getAttribute: a => (a === 'src' && img) ? img : null,
+  }),
   scrollIntoView(){},
 });
 
@@ -83,6 +86,11 @@ async function run({steps, header = 'My Movies (202)', pathname = '/content/brow
   ok('extracts title from the tile', it.title === 'Movie 0', it.title);
   ok('builds the details url', /\/content\/browse\/details\/movie-0\/1000$/.test(it.url), it.url);
   ok('flags movies as movies', it.tv === false);
+
+  // 4b. Tile artwork is captured when the store provides it.
+  r = await run({steps: [[tile(5, 'Art Movie', 'https://images2.vudu.com/poster2/5-194')]], header: 'My Movies (1)'});
+  ok('captures artwork from the tile', r.done.payload.items[0].img === 'https://images2.vudu.com/poster2/5-194',
+     r.done.payload.items[0].img);
 
   // 5. The TV page marks its titles as TV and reads its own header.
   r = await run({steps: [[tile(7, 'Some Show')]], header: 'My TV (1)', pathname: '/content/browse/mytv'});

@@ -24,7 +24,7 @@
 
   const collect = () => {
     SLCollect.fandango(isTv).forEach(it => {
-      if (!found.has(it.key)) found.set(it.key, {title: it.title, url: it.url, tv: it.tv});
+      if (!found.has(it.key)) found.set(it.key, {title: it.title, url: it.url, tv: it.tv, img: it.img});
     });
   };
 
