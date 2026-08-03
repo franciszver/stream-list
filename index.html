@@ -96,6 +96,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .watchbtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;margin:5px 0}
 .watchbtn small{font-weight:400;opacity:.85}
 .empty{color:var(--ink3);text-align:center;padding:60px 0;font-size:15px}
+#syncStrip{display:none;gap:14px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 14px;margin:0 0 14px;font-size:13px;color:var(--ink2)}
+#syncStrip.open{display:flex}
+#syncStrip .sdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-size:12px;border-top:1px solid var(--line)}
 @media(max-width:640px){ #grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))} .dgrid{flex-direction:column} }
 </style>
@@ -114,11 +117,13 @@ footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-s
       </select>
       <button class="ctl" id="viewToggle" title="Toggle grid/list">☰ List</button>
       <button class="ctl" id="statsToggle">📊 Stats</button>
+      <button class="ctl" id="syncBtn" style="display:none" title="Scan your store libraries">⇄ Sync stores</button>
       <button class="ctl" id="updateBtn">⟳ Update</button>
     </div>
   </div>
 </header>
 <main>
+  <div id="syncStrip"></div>
   <div id="stats"></div>
   <div id="sampleBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 14px;margin:0 0 14px;color:var(--ink2);font-size:13px">
     <span>Showing sample data — sync your own library via ⟳ Update</span>
@@ -137,8 +142,9 @@ footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-s
 <dialog id="detail"></dialog>
 
 <dialog id="update">
-  <div class="dhead"><h2>Keep your library up to date</h2><button class="x" onclick="U.close()">✕</button></div>
+  <div class="dhead"><h2>Keep your library up to date</h2><button class="x" id="updClose">✕</button></div>
   <div class="dbody">
+    <div id="bkSection">
     <p><b>Option A — ask Claude.</b> Open a Cowork session and say <i>“re-scan my stream-list libraries.”</i> Claude will crawl all three sites and rebuild <code>library.json</code>.</p>
     <h3>Option B — bookmarklets (self-service)</h3>
     <p>Drag each button to your bookmarks bar. Open the matching library page, sign in, scroll to the bottom so everything loads, then click the bookmarklet — it copies your list as JSON. Paste below and hit Merge.</p>
@@ -152,12 +158,13 @@ footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-s
       <a href="https://www.amazon.com/gp/video/mystuff/library/tv" target="_blank">TV</a> ·
       <a href="https://athome.fandango.com/content/browse/mymovies" target="_blank">Fandango movies</a></p>
     <textarea id="pasteBox" placeholder='Paste bookmarklet JSON here…'></textarea>
+    </div>
     <div class="rowbtns">
-      <button class="ctl" onclick="U.merge()">Merge into library</button>
-      <button class="ctl" onclick="document.getElementById('importFile').click()">Import</button>
-      <button class="ctl" onclick="U.exportLib()">Export library.json</button>
-      <button class="ctl" onclick="U.exportBackup()">Export backup</button>
-      <button class="ctl" onclick="U.resetFlags()">Reset flags</button>
+      <button class="ctl" id="mergeBtn">Merge into library</button>
+      <button class="ctl" id="importBtn">Import</button>
+      <button class="ctl" id="exportLibBtn">Export library.json</button>
+      <button class="ctl" id="exportBackupBtn">Export backup</button>
+      <button class="ctl" id="resetFlagsBtn">Reset flags</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" style="display:none">
     <p id="mergeMsg" style="color:var(--good)"></p>
@@ -343,6 +350,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SLCollect;
 <script>
 'use strict';
 const DATA = JSON.parse(document.getElementById('library-data').textContent);
+// True when this page ships inside the Chrome extension (app/app.html);
+// gates the sync UI and the chrome.storage auto-merge bridge.
+const IS_EXT = location.protocol === 'chrome-extension:';
 const SVC = {
   google:   {name:'Google Play',   letter:'G', cls:'google',   color:'var(--google)'},
   amazon:   {name:'Prime Video',   letter:'P', cls:'amazon',   color:'var(--amazon)'},
@@ -527,6 +537,9 @@ function render(){
   const list = visible();
   document.getElementById('count').textContent = `${list.length} of ${items.length} titles`;
   document.getElementById('empty').style.display = list.length ? 'none':'block';
+  document.getElementById('empty').textContent = (IS_EXT && !items.length)
+    ? 'Your library is empty — click ⇄ Sync stores to scan what you own.'
+    : "Nothing matches — you don't own that one yet 🍿";
   grid.className = state.view==='list' ? 'list' : '';
   document.getElementById('viewToggle').textContent = state.view==='list' ? '▦ Grid' : '☰ List';
   grid.innerHTML = '';
@@ -537,7 +550,7 @@ function render(){
     const card = document.createElement('div');
     card.className = 'card'; card.dataset.id = e.id;
     card.innerHTML = `
-      <div class="poster"><img alt="" loading="lazy" onerror="this.remove()"><div class="ph">${esc(e.title)}</div>
+      <div class="poster"><img alt="" loading="lazy"><div class="ph">${esc(e.title)}</div>
         <div class="flags">
           <button class="flag q ${f.q?'on':''}" title="Watch next">＋</button>
           <button class="flag w ${f.w?'on':''}" title="Watched">✓</button>
@@ -551,6 +564,7 @@ function render(){
         <div class="svcs">${svcLinks(e)}</div>
       </div>`;
     const img = card.querySelector('img');
+    img.addEventListener('error', () => img.remove());
     if (posters[e.id]) img.src = posters[e.id];
     card.querySelector('.poster').addEventListener('click', ev => { if (ev.target.closest('.flag')) return; detail(e); });
     card.querySelector('.flag.w').onclick = () => { f.w = f.w?0:1; flags[e.id]=f; LS.set('flags',flags); render(); };
@@ -568,7 +582,7 @@ function detail(e){
   const y = meta[e.id]?.year || e.year;
   dlg.innerHTML = `
     <div class="dhead"><h2>${esc(e.title)}${y?` <span style="color:var(--ink3);font-weight:400">(${esc(y)})</span>`:''}</h2>
-      <button class="x" onclick="document.getElementById('detail').close()">✕</button></div>
+      <button class="x">✕</button></div>
     <div class="dbody"><div class="dgrid">
       <div class="poster">${posters[e.id]?`<img src="${safeUrl(posters[e.id])}" alt="">`:`<div class="ph">${esc(e.title)}</div>`}</div>
       <div style="flex:1">
@@ -580,6 +594,7 @@ function detail(e){
         </div>
       </div>
     </div></div>`;
+  dlg.querySelector('.x').onclick = () => dlg.close();
   dlg.querySelector('#dW').onclick = ()=>{ f.w=f.w?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
   dlg.querySelector('#dQ').onclick = ()=>{ f.q=f.q?0:1; flags[e.id]=f; LS.set('flags',flags); dlg.close(); render(); };
   dlg.showModal();
@@ -657,6 +672,12 @@ const U = {
   },
 };
 document.getElementById('updateBtn').onclick = U.open;
+document.getElementById('updClose').onclick = U.close;
+document.getElementById('mergeBtn').onclick = U.merge;
+document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+document.getElementById('exportLibBtn').onclick = U.exportLib;
+document.getElementById('exportBackupBtn').onclick = U.exportBackup;
+document.getElementById('resetFlagsBtn').onclick = U.resetFlags;
 document.getElementById('tmdbKey').addEventListener('change', ev => { LS.set('tmdb', ev.target.value.trim()); posters={}; LS.set('posters',posters); });
 document.getElementById('importFile').addEventListener('change', ev => {
   const file = ev.target.files[0]; if (!file) return;
@@ -693,6 +714,71 @@ document.getElementById('bkFandango').href = bkm(COLLECT_SRC + `
 const out=[],seen=new Set();
 SLCollect.fandango().forEach(it=>{if(seen.has(it.key))return;seen.add(it.key);out.push({title:it.title,url:it.url,tv:it.tv})});
 const j=JSON.stringify({service:'fandango',items:out});navigator.clipboard.writeText(j).then(()=>alert('Copied '+out.length+' titles (scroll the whole page first!) — paste into Stream List'));`);
+
+// ---------- extension integration ----------
+// Inside the extension the app page is the whole product: the Sync button
+// drives background.js, the strip mirrors per-service status live, and
+// finished results auto-merge additively (nothing is ever deleted).
+// mergeInto is idempotent, so re-merging stored results is safe.
+if (IS_EXT){
+  const syncBtn = document.getElementById('syncBtn');
+  const stripEl = document.getElementById('syncStrip');
+  syncBtn.style.display = '';
+  // Bookmarklets and paste-merge don't apply inside the extension.
+  document.getElementById('bkSection').style.display = 'none';
+  document.getElementById('mergeBtn').style.display = 'none';
+
+  let armed = false, armTimer = 0;
+  syncBtn.addEventListener('click', () => {
+    if (!armed){
+      armed = true; syncBtn.textContent = '▶ Open store tabs & scan?';
+      armTimer = setTimeout(() => { armed = false; syncBtn.textContent = '⇄ Sync stores'; }, 8000);
+      return;
+    }
+    clearTimeout(armTimer); armed = false; syncBtn.textContent = '⇄ Sync stores';
+    chrome.runtime.sendMessage({cmd: 'sync'});
+    stripEl.classList.add('open');
+  });
+
+  function stText(st){
+    if (!st) return 'not synced yet';
+    switch (st.state){
+      case 'opening': return 'opening…';
+      case 'running': return `scanning… ${st.found ?? 0}${st.expected ? '/' + st.expected : ''}`;
+      case 'login':   return 'login needed — sign in on the open tab, then sync again';
+      case 'error':   return 'error: ' + (st.error || 'unknown');
+      case 'done':    return `${st.found} titles ✓`;
+      default:        return st.state;
+    }
+  }
+  async function renderStrip(){
+    const {status = {}} = await chrome.storage.local.get('status');
+    if (!Object.keys(status).length) return;
+    stripEl.classList.add('open');
+    stripEl.innerHTML = Object.entries(SVC).map(([s, d]) =>
+      `<span><span class="sdot" style="background:${d.color}"></span>${esc(d.name)}: ${esc(stText(status[s]))}</span>`).join('');
+  }
+  async function autoMerge(){
+    const {results = {}} = await chrome.storage.local.get('results');
+    let added = 0, linked = 0;
+    for (const r of Object.values(results)){
+      if (!r || typeof r.service !== 'string' || !Array.isArray(r.items)) continue;
+      const byNorm = {}; for (const e of library) byNorm[SLMerge.keyOf(e.title, e.type === 'tv')] = e;
+      const res = SLMerge.mergeInto(byNorm, {service: r.service, items: r.items});
+      library.push(...res.added); added += res.added.length; linked += res.linked.length;
+    }
+    if (added || linked){
+      LS.set('library', library); LS.set('gen', new Date().toISOString().slice(0, 10));
+      rebuild(); render();
+    }
+  }
+  chrome.storage.onChanged.addListener((ch, area) => {
+    if (area !== 'local') return;
+    if (ch.status) renderStrip();
+    if (ch.results) autoMerge();
+  });
+  renderStrip(); autoMerge();
+}
 
 // ---------- wiring ----------
 document.getElementById('search').addEventListener('input', ev => { state.q = ev.target.value; render(); });

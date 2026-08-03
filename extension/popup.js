@@ -12,6 +12,11 @@ const SERVICES = [
 const servicesEl = document.getElementById('services');
 const msgEl = document.getElementById('msg');
 
+document.getElementById('openApp').addEventListener('click', () => {
+  chrome.tabs.create({url: chrome.runtime.getURL('app/app.html')});
+  window.close();
+});
+
 function stateText(st, res){
   if (!st) return res ? `${res.items.length} titles` : 'not synced yet';
   switch (st.state){
@@ -40,6 +45,11 @@ async function render(){
     servicesEl.appendChild(row);
   }
   document.getElementById('download').disabled = !Object.keys(results).length;
+  const when = Math.max(0, ...Object.values(results).map(r => r.when || 0));
+  const total = Object.values(results).reduce((n, r) => n + r.items.length, 0);
+  document.getElementById('lastSync').textContent = when
+    ? `Last sync: ${new Date(when).toLocaleString()} — ${total} titles across ${Object.keys(results).length} service(s)`
+    : 'Not synced yet — open “Sync & export details” below to run the first sync.';
 }
 
 function say(t){ msgEl.textContent = t; }

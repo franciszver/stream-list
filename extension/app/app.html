@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream List — My Movie &amp; TV Library</title>
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#f6f5f2; --surface:#ffffff; --surface2:#efede8; --ink:#1a1a19; --ink2:#5c5b54; --ink3:#8a897f;
+  --line:#e2e0d8; --accent:#2a78d6;
+  --google:#2a78d6; --amazon:#eb6834; --fandango:#1baf7a;
+  --good:#008300; --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 14px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121211; --surface:#1a1a19; --surface2:#242422; --ink:#ffffff; --ink2:#c3c2b7; --ink3:#8a897f;
+    --line:#33322f; --accent:#3987e5;
+    --google:#3987e5; --amazon:#d95926; --fandango:#199e70;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 20px}
+.hrow{display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;flex-wrap:wrap}
+h1{font-size:19px;font-weight:700;white-space:nowrap}
+h1 .sub{color:var(--ink3);font-weight:400;font-size:13px;margin-left:6px}
+#search{flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font-size:15px;outline:none}
+#search:focus{border-color:var(--accent)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button.ctl{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font-size:13px;cursor:pointer}
+button.ctl.active{border-color:var(--accent);color:var(--accent)}
+main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
+/* chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
+.chip{padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;cursor:pointer;color:var(--ink2);user-select:none}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+/* stats */
+#stats{display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+#stats.open{display:grid}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tile .n{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.tile .l{font-size:12px;color:var(--ink2);margin-top:2px}
+.tile .bar{height:6px;border-radius:4px;background:var(--surface2);margin-top:10px;overflow:hidden;display:flex;gap:2px}
+.tile .bar i{display:block;height:100%;border-radius:4px}
+/* grid */
+#count{color:var(--ink3);font-size:13px;margin:0 0 10px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative;transition:transform .12s}
+.card:hover{transform:translateY(-2px)}
+.poster{aspect-ratio:2/3;background:var(--surface2);position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.poster img{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0}
+.poster img[src]{display:block}
+.poster .ph{color:var(--ink3);font-size:12px;text-align:center;padding:12px;font-weight:600}
+.cbody{padding:9px 10px 10px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ct{font-size:13.5px;font-weight:600;line-height:1.25}
+.cy{color:var(--ink3);font-size:11.5px}
+.svcs{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto}
+.svc{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10.5px;font-weight:700;text-decoration:none;cursor:pointer}
+.svc.google{background:var(--google)}.svc.amazon{background:var(--amazon)}.svc.fandango{background:var(--fandango)}
+.flags{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;pointer-events:none}
+.flag{pointer-events:auto;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:7px;font-size:12px;padding:3px 7px;cursor:pointer;backdrop-filter:blur(4px)}
+.flag.on{background:var(--good)}
+.flag.q.on{background:var(--accent)}
+.tvtag{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;letter-spacing:.5px;backdrop-filter:blur(4px)}
+/* list view */
+#grid.list{display:flex;flex-direction:column;gap:6px}
+#grid.list .card{flex-direction:row;align-items:center;padding:8px 12px;gap:12px}
+#grid.list .poster{width:38px;min-width:38px;aspect-ratio:2/3;border-radius:6px}
+#grid.list .poster .ph{display:none}
+#grid.list .cbody{flex-direction:row;align-items:center;gap:14px;padding:0;flex:1}
+#grid.list .ct{flex:1}
+#grid.list .flags,#grid.list .tvtag,#grid.list .cy{display:none}
+#grid.list .listmeta{display:flex;gap:10px;align-items:center}
+.listmeta{display:none}
+#grid.list .listmeta{display:flex}
+.lm{font-size:11px;color:var(--ink3);min-width:34px}
+/* modal */
+dialog{border:none;border-radius:16px;padding:0;max-width:640px;width:92vw;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dhead{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dhead h2{font-size:16px}
+.dbody{padding:16px 20px 22px;max-height:70vh;overflow:auto;font-size:14px}
+.dbody h3{font-size:13.5px;margin:14px 0 6px}
+.dbody p{color:var(--ink2);font-size:13px;margin:6px 0}
+.dbody textarea{width:100%;height:110px;border:1px solid var(--line);border-radius:9px;background:var(--surface2);color:var(--ink);padding:9px;font-family:ui-monospace,monospace;font-size:12px}
+.dbody code{background:var(--surface2);padding:1px 5px;border-radius:5px;font-size:12px}
+.bkm{display:inline-block;margin:4px 6px 4px 0;padding:7px 12px;border-radius:9px;background:var(--surface2);border:1px solid var(--line);color:var(--accent);text-decoration:none;font-size:13px;font-weight:600}
+.rowbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.x{background:none;border:none;font-size:20px;color:var(--ink3);cursor:pointer}
+/* detail modal */
+.dgrid{display:flex;gap:18px}
+.dgrid .poster{width:150px;min-width:150px;border-radius:10px}
+.watchbtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;margin:5px 0}
+.watchbtn small{font-weight:400;opacity:.85}
+.empty{color:var(--ink3);text-align:center;padding:60px 0;font-size:15px}
+#syncStrip{display:none;gap:14px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 14px;margin:0 0 14px;font-size:13px;color:var(--ink2)}
+#syncStrip.open{display:flex}
+#syncStrip .sdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+footer{max-width:1280px;margin:0 auto;padding:14px 20px;color:var(--ink3);font-size:12px;border-top:1px solid var(--line)}
+@media(max-width:640px){ #grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))} .dgrid{flex-direction:column} }
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <h1>🎬 Stream List<span class="sub" id="genDate"></span></h1>
+    <input id="search" type="search" placeholder="Search your library…  ( / )" autocomplete="off">
+    <div class="controls">
+      <select id="sort">
+        <option value="title">Sort: Title</option>
+        <option value="year">Sort: Year</option>
+        <option value="services">Sort: # Services</option>
+        <option value="random">Sort: Shuffle</option>
+      </select>
+      <button class="ctl" id="viewToggle" title="Toggle grid/list">☰ List</button>
+      <button class="ctl" id="statsToggle">📊 Stats</button>
+      <button class="ctl" id="syncBtn" style="display:none" title="Scan your store libraries">⇄ Sync stores</button>
+      <button class="ctl" id="updateBtn">⟳ Update</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="syncStrip"></div>
+  <div id="stats"></div>
+  <div id="sampleBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 14px;margin:0 0 14px;color:var(--ink2);font-size:13px">
+    <span>Showing sample data — sync your own library via ⟳ Update</span>
+    <button class="ctl" id="clearSampleBtn">Clear sample</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <p id="count"></p>
+  <div id="grid"></div>
+  <div class="empty" id="empty" style="display:none">Nothing matches — you don't own that one yet 🍿</div>
+</main>
+<footer>
+  Library data scanned from Google Play, Prime Video &amp; Fandango at Home. Posters via iTunes Search (fetched on view, cached locally).
+  Watched/queue flags live in this browser. Use <b>⟳ Update</b> to refresh your library.
+</footer>
+
+<dialog id="detail"></dialog>
+
+<dialog id="update">
+  <div class="dhead"><h2>Keep your library up to date</h2><button class="x" id="updClose">✕</button></div>
+  <div class="dbody">
+    <div id="bkSection">
+    <p><b>Option A — ask Claude.</b> Open a Cowork session and say <i>“re-scan my stream-list libraries.”</i> Claude will crawl all three sites and rebuild <code>library.json</code>.</p>
+    <h3>Option B — bookmarklets (self-service)</h3>
+    <p>Drag each button to your bookmarks bar. Open the matching library page, sign in, scroll to the bottom so everything loads, then click the bookmarklet — it copies your list as JSON. Paste below and hit Merge.</p>
+    <p>
+      <a class="bkm" id="bkGoogle" href="#">📥 Google Play</a>
+      <a class="bkm" id="bkAmazon" href="#">📥 Prime Video</a>
+      <a class="bkm" id="bkFandango" href="#">📥 Fandango</a>
+    </p>
+    <p style="font-size:12px">Pages: <a href="https://play.google.com/movies" target="_blank">Google library</a> ·
+      <a href="https://www.amazon.com/gp/video/mystuff/library/movies" target="_blank">Amazon movies</a> /
+      <a href="https://www.amazon.com/gp/video/mystuff/library/tv" target="_blank">TV</a> ·
+      <a href="https://athome.fandango.com/content/browse/mymovies" target="_blank">Fandango movies</a></p>
+    <textarea id="pasteBox" placeholder='Paste bookmarklet JSON here…'></textarea>
+    </div>
+    <div class="rowbtns">
+      <button class="ctl" id="mergeBtn">Merge into library</button>
+      <button class="ctl" id="importBtn">Import</button>
+      <button class="ctl" id="exportLibBtn">Export library.json</button>
+      <button class="ctl" id="exportBackupBtn">Export backup</button>
+      <button class="ctl" id="resetFlagsBtn">Reset flags</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+    <p id="mergeMsg" style="color:var(--good)"></p>
+    <p style="font-size:12px">Import accepts three kinds of files: a <b>backup</b> (from Export backup — replaces your whole library, flags, posters and TMDB matches; this is what you'd keep in sync via OneDrive/Google Drive), a <code>library.json</code> from the Chrome extension pipeline (merged straight in, no rebuild needed), or a single-service bookmarklet export.</p>
+    <h3>Optional: TMDB posters</h3>
+    <p>Posters load from iTunes automatically. For better matches add a free <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB API key</a>:</p>
+    <input id="tmdbKey" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--ink)" placeholder="TMDB API key (v3)">
+  </div>
+</dialog>
+
+<script id="library-data" type="application/json">{"generated":"never","items":[],"sample":false}</script>
+<script src="../lib/merge.js"></script>
+<script id="collect-src" type="text/plain">
+// Shared DOM-scrape logic for Stream List harvesters and bookmarklets.
+// Single source of truth: inlined into index.html by tools/build.py
+// (replacing the shared-collect placeholder in index.template.html) and
+// loaded by the Chrome extension harvesters (extension/harvest/*.js).
+// Pure DOM scan of the CURRENT page only — no chrome.* APIs, no async,
+// no scrolling. Callers own the scroll/retry loop and dedupe.
+'use strict';
+const SLCollect = (() => {
+  // Google Play library page: one scan of visible anchors.
+  function google(){
+    const out = [];
+    document.querySelectorAll('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
+      const u = new URL(a.href, location.origin);
+      let t = a.textContent.trim()
+        .replace(/(\d\.\d)?star.*$/, '')
+        .replace(/\$\d+\.\d\d.*$/, '')
+        .trim();
+      if (!t && a.getAttribute('aria-label')) t = a.getAttribute('aria-label').trim();
+      if (!t) return;
+      out.push({key: u.pathname, title: t, url: u.origin + u.pathname, tv: u.pathname.includes('/tv/')});
+    });
+    return out;
+  }
+
+  // Prime Video library page (movies or tv, per isTv).
+  function amazon(isTv){
+    const out = [];
+    document.querySelectorAll('a[href*="/gp/video/detail/"]').forEach(a => {
+      const m = a.href.match(/\/gp\/video\/detail\/([A-Z0-9]+)/);
+      if (!m) return;
+      const t = (a.getAttribute('aria-label') || a.textContent).trim();
+      if (!t) return;
+      out.push({key: m[1], title: t, url: 'https://www.amazon.com/gp/video/detail/' + m[1], tv: !!isTv});
+    });
+    return out;
+  }
+
+  // Fandango at Home "My Movies" page.
+  function fandango(){
+    const out = [];
+    document.querySelectorAll('a[href*="/content/browse/details/"]').forEach(a => {
+      const m = (a.getAttribute('href') || '').match(/\/content\/browse\/details\/([^/]+)\/(\d+)/);
+      if (!m) return;
+      const img = a.querySelector('img');
+      const t = (img && img.alt || a.getAttribute('aria-label') || '').trim()
+        || m[1].replace(/-/g, ' ').trim();
+      out.push({
+        key: m[2],
+        title: t,
+        url: 'https://athome.fandango.com/content/browse/details/' + m[1] + '/' + m[2],
+        tv: false,
+      });
+    });
+    return out;
+  }
+
+  return {google, amazon, fandango};
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SLCollect;
+
+</script>
+<script src="app.js"></script>
+</body>
+</html>

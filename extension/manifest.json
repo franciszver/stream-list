@@ -1,11 +1,23 @@
 {
   "manifest_version": 3,
-  "name": "Stream List Sync",
-  "version": "1.0.0",
-  "description": "Harvests your Google Play, Prime Video, and Fandango at Home libraries and merges them into Stream List's library.json.",
+  "name": "Stream List",
+  "version": "1.1.0",
+  "description": "Your movies & TV, owned across Google Play, Prime Video, and Fandango at Home — one searchable library that syncs itself.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Stream List Sync"
+    "default_title": "Stream List",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
@@ -14,6 +26,8 @@
   "host_permissions": [
     "https://play.google.com/*",
     "https://www.amazon.com/*",
-    "https://athome.fandango.com/*"
+    "https://athome.fandango.com/*",
+    "https://itunes.apple.com/*",
+    "https://api.themoviedb.org/*"
   ]
 }

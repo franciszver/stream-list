@@ -1,98 +1,77 @@
 # Stream List
 
-A single-file web app that answers one question fast: **"Do I already own this movie, and where can I watch it?"**
+A Chrome extension that answers one question fast: **"Do I already own this movie, and where can I watch it?"**
 
-Open **`index.html`** in any browser — no server, no install, no accounts. It works straight from `file://`.
+You've bought movies in three different places — **Google Play (Movies & TV)**, **Prime Video**, and **Fandango at Home (Vudu)** — and none of them will tell you what you own in the other two. Stream List scans the store libraries you're already signed in to and merges everything into one searchable library. A title you own in two places (thanks, Movies Anywhere) is **one entry** with a Watch button for every store.
 
-## What it does
+## Install
 
-- Unified, searchable / sortable / filterable catalog of every movie & TV season you own on
-  **Google Play (Movies & TV)**, **Prime Video**, and **Fandango at Home (Vudu)**.
-- Titles owned on multiple services (thanks, Movies Anywhere) are **merged into one entry**
-  showing every place you can stream it — one click opens the right store page in a new tab.
-- **Duplicate view** ("Owned 2+ places") shows your cross-service overlap.
-- **Watched / Watch-next flags** with one tap on any card.
-- **Stats dashboard**: totals, per-service counts, movies vs TV, overlap.
-- **Posters & metadata** load automatically from the iTunes Search API (cached locally);
-  add a free TMDB API key in ⟳ Update for higher-quality matches.
-- Grid and list views, keyboard shortcut `/` to search, dark mode follows your system.
+Until it's on the Chrome Web Store, install it unpacked (2 minutes, no build step):
 
-Your library lives entirely in your browser's `localStorage` — nothing is ever sent to a
-server. The repo ships with a small sample library so the app has something to show out of
-the box; a banner lets you clear it and load your own whenever you're ready.
+1. [Download this repo as a zip](https://github.com/franciszver/stream-list/archive/refs/heads/main.zip) and unzip it (or `git clone`).
+2. In Chrome, open `chrome://extensions`.
+3. Turn on **Developer mode** (toggle, top-right).
+4. Click **Load unpacked** and select the repo's **`extension/`** folder.
+5. Pin **Stream List** via the puzzle-piece menu so the icon is always visible.
 
-## Quick start
+## Use
 
-Just open `index.html`. You'll see a demo library and a banner offering to clear the sample
-data — dismiss it or clear it, your call.
+1. Click the Stream List icon → **📚 Open my library**.
+2. Click **⇄ Sync stores** (it asks once before taking over — sync opens each store's library page in tabs and auto-scrolls while it scans). The toolbar icon shows **↻** while syncing, then **✓**.
+3. If a store shows **login needed**, sign in on the tab it left open, then sync again.
+4. That's it — titles merge into your library automatically as each store finishes. Nothing is ever deleted by a sync.
 
-## Loading your real library
+Then browse: search (`/`), filter by store / movies / TV / "owned 2+ places", flag things watched or watch-next, toggle stats, grid or list. Posters load automatically (iTunes artwork; paste a free [TMDB API key](https://www.themoviedb.org/settings/api) in ⟳ Update for better matches). Dark mode follows your system.
 
-Three ways, all reachable from the **⟳ Update** dialog in the app:
+**Your data never leaves your browser.** No account, no server, no analytics. The extension reads the store library pages you can already see — it never touches credentials.
 
-1. **Chrome extension (recommended)** — open `chrome://extensions`, turn on **Developer
-   mode**, click **Load unpacked**, and select this repo's `extension/` folder. Click the
-   extension icon, then **⟳ Sync all libraries**: it opens each store's library page in a
-   tab and harvests your owned titles. If a service says **login needed**, sign in on that
-   tab and sync it again. Then either:
-   - **⬇ library.json** — download the merged library and **Import** it via the app's
-     ⟳ Update dialog, or
-   - **Copy** (per service) — copy that service's JSON and paste it into the ⟳ Update →
-     Merge box.
-2. **Bookmarklets** — drag the bookmarklets from the ⟳ Update dialog to your bookmarks bar.
-   On each store's library page (signed in, scrolled to the bottom so everything loads),
-   click the matching bookmarklet — it copies your titles as JSON. Paste into the Merge box.
-3. **Command line, if you'd rather script it** — drop raw scans into `data/` (gitignored;
-   formats are documented in `tools/merge.py`'s docstring), then run
-   `python tools/merge.py && python tools/build.py` to bake your library straight into a
-   fresh `index.html`. `library.json` is also gitignored, so nothing personal gets committed.
+## Backup & moving between machines
 
-The extension only ever reads the store library pages you already own — it never sees or
-stores your credentials.
-
-## Syncing between machines
-
-**⟳ Update → Export backup** writes `stream-list-backup.json` (your library, watched/
-watch-next flags, and poster cache — never your TMDB key). Drop it in OneDrive, Google
-Drive, Dropbox, or wherever you sync files, then **Import** it from the same dialog on
-another machine.
+**⟳ Update → Export backup** writes `stream-list-backup.json` (library, flags, poster cache — never your TMDB key). Keep it in OneDrive/Google Drive/Dropbox, then **Import** it on the other machine.
 
 ## Project layout
 
 ```
-index.html            ← the app (self-contained, sample data baked in). Open this.
-index.template.html   ← app source with __LIBRARY_DATA__ placeholder
-library.sample.json   ← demo data baked into the committed index.html
-library.json          ← your real merged library (generated, gitignored)
-data/                 ← your raw per-service scans (gitignored)
-tools/
-  merge.py            ← data/* → library.json (normalizes titles, merges services)
-  build.py            ← library.json (or library.sample.json) + template + extension/lib/merge.js → index.html
-  test_merge.js       ← headless tests for the shared merge logic (node)
-extension/            ← Chrome extension (Manifest V3) that auto-syncs libraries
+extension/              ← the product (Manifest V3). Load this folder unpacked.
   manifest.json
-  background.js       ← orchestrates: opens tabs, injects harvesters, stores results
-  harvest/             ← per-store content scripts (google, amazon, fandango)
-  popup.html/js        ← Sync all · per-service status · download / copy JSON
-  lib/merge.js         ← SHARED normalization+merge logic (also inlined into index.html)
+  app/                  ← the library app page (BUILT — don't edit; edit the template)
+  background.js         ← sync orchestrator: opens tabs, injects harvesters, badge
+  harvest/              ← per-store page readers (google, amazon, fandango)
+  popup.html/js         ← Open my library · sync status · export escape hatches
+  lib/merge.js          ← shared title-normalization + merge logic
+  lib/collect.js        ← shared per-store DOM collectors
+  icons/
+index.template.html     ← single source for the app UI (both builds)
+index.html              ← standalone single-file build of the same app (legacy path)
+library.sample.json     ← demo data for the standalone build
+tools/
+  build.py              ← template → index.html AND extension/app/ (CSP-safe split)
+  package.py            ← extension/ → dist/stream-list-<version>.zip (Web Store)
+  make_icons.py         ← regenerates extension/icons/
+  merge.py              ← data/* scans → library.json (power-user pipeline)
+  test_merge.js         ← node tests for merge logic
+  test_collect.js       ← node tests for the DOM collectors
+docs/store-listing.md   ← Chrome Web Store listing copy + permission justifications
 ```
 
 ## Development
 
-Rebuild `index.html` after editing the template, shared merge logic, or your library:
+The app UI lives in `index.template.html` — **never edit `index.html` or `extension/app/` directly**. Rebuild after changes:
 
 ```
-python tools/merge.py && python tools/build.py
+python tools/build.py            # → index.html + extension/app/
+node tools/test_merge.js && node tools/test_collect.js
+python tools/package.py          # → dist/stream-list-<version>.zip
 ```
 
-Test the shared title-matching/merge logic:
-
-```
-node tools/test_merge.js
-```
+Then hit ⟳ reload on the extension card in `chrome://extensions`.
 
 ## Known limits
 
 - Bundles (e.g. *The Dark Knight Trilogy*) appear as one entry, as sold.
-- Store markup changes can break the harvesters or bookmarklets — PRs welcome.
-- The extension is Chrome/Chromium only.
+- Store markup changes can break the harvesters — PRs welcome.
+- Chrome/Chromium only (Manifest V3).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
