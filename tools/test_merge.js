@@ -217,6 +217,12 @@ test('mergeInto clears storeHint once you own the rest (store:false)', () => {
   assert.strictEqual('storeHint' in byNorm[SLMerge.keyOf('Show', true)], false);
 });
 
+test('storePoster/storeHint do not interfere: hint set, no fandango link', () => {
+  const e = SLMerge.makeEntry({title: 'X', url: 'https://a/x', store: true}, 'amazon');
+  assert.strictEqual(e.storeHint, true);
+  assert.strictEqual(SLMerge.storePoster(e), ''); // amazon-only, nothing derivable
+});
+
 test('mergeInto leaves storeHint alone when a collector omits the field', () => {
   const byNorm = {};
   SLMerge.mergeInto(byNorm, {service: 'amazon', items: [{title: 'Show', url: 'https://a/s', tv: true, store: true}]});

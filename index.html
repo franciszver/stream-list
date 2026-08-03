@@ -73,7 +73,7 @@ main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
 #grid.list .poster .ph{display:none}
 #grid.list .cbody{flex-direction:row;align-items:center;gap:14px;padding:0;flex:1}
 #grid.list .ct{flex:1}
-#grid.list .flags,#grid.list .tvtag,#grid.list .cy{display:none}
+#grid.list .flags,#grid.list .tvtag,#grid.list .storetag,#grid.list .cy{display:none}
 #grid.list .listmeta{display:flex;gap:10px;align-items:center}
 .listmeta{display:none}
 #grid.list .listmeta{display:flex}
@@ -503,7 +503,11 @@ function chips(){
   c.push({k:'type', v:'tv', label:'TV'});
   for (const [s,d] of Object.entries(SVC)) c.push({k:'svc', v:s, label:d.name, dot:d.color});
   c.push({k:'multi', v:true, label:'Owned 2+ places'});
+  // Chip only exists while some title carries the hint. If the last one
+  // self-heals away while the filter is on, clear it so the grid doesn't
+  // silently filter to empty with no active chip to explain why.
   if (items.some(e => e.storeHint)) c.push({k:'store', v:true, label:'🛍 Partial / buy suggested'});
+  else state.store = false;
   c.push({k:'flag', v:'q', label:'Watch next'});
   c.push({k:'flag', v:'w', label:'Watched'});
   c.push({k:'flag', v:'uw', label:'Unwatched'});

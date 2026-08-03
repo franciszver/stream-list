@@ -57,7 +57,11 @@ function chips(){
   c.push({k:'type', v:'tv', label:'TV'});
   for (const [s,d] of Object.entries(SVC)) c.push({k:'svc', v:s, label:d.name, dot:d.color});
   c.push({k:'multi', v:true, label:'Owned 2+ places'});
+  // Chip only exists while some title carries the hint. If the last one
+  // self-heals away while the filter is on, clear it so the grid doesn't
+  // silently filter to empty with no active chip to explain why.
   if (items.some(e => e.storeHint)) c.push({k:'store', v:true, label:'🛍 Partial / buy suggested'});
+  else state.store = false;
   c.push({k:'flag', v:'q', label:'Watch next'});
   c.push({k:'flag', v:'w', label:'Watched'});
   c.push({k:'flag', v:'uw', label:'Unwatched'});
