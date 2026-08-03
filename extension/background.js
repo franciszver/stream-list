@@ -25,8 +25,11 @@ const SERVICES = {
   fandango: {
     label: 'Fandango at Home',
     // minVisible pre-renders that many grid items up front (the grid is
-    // virtualized; scrolling alone proved unreliable — see harvest/fandango.js)
-    pages: [{url: 'https://athome.fandango.com/content/browse/mymovies?minVisible=1000'}],
+    // virtualized; scrolling alone proved unreliable). Owner-verified: the
+    // param only takes effect together with SORT_ORDER, and 999 is the max
+    // that works (bare ?minVisible=1000 rendered ~67). The SPA rewrites the
+    // URL after load — harmless, the tiles stay rendered.
+    pages: [{url: 'https://athome.fandango.com/content/browse/mymovies?SORT_ORDER=A%2520-%2520Z&minVisible=999'}],
     script: 'harvest/fandango.js',
     loginHosts: ['athome.fandango.com/login', 'auth.athome.fandango.com'],
     timeoutMs: 240000, // virtualized grid, auto-scroll can be slow
