@@ -324,7 +324,10 @@ const SLCollect = (() => {
   // drops the smaller half. Missing a title you own is worse than showing
   // one you don't, so this only excludes what a heading names as a rail,
   // and refuses to act if that would remove most of the page.
-  const RAIL = /\b(recommend\w*|suggest\w*|wish\s*list|watch\s*list|because you watched|more like|similar|also (?:bought|liked|watched)|trending|popular|new releases?|coming soon|continue watching|top picks|featured|sponsored|you might)\b/i;
+  // "continue watching" is deliberately absent: it can sit over titles you
+  // do own and are part-way through, and dropping those is the failure we
+  // care most about avoiding.
+  const RAIL = /\b(recommend\w*|suggest\w*|wish\s*list|watch\s*list|because you watched|more like|similar|also (?:bought|like[ds]?|watched)|trending|popular|new releases?|coming soon|top picks|featured|sponsored|you (?:might|may))\b/i;
   function railRoots(){
     const roots = [];
     document.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"]').forEach(h => {
@@ -337,14 +340,17 @@ const SLCollect = (() => {
     });
     return roots;
   }
-  function ownedLinks(selector){
+  // includeRails: return everything, so a caller can diff the two lists to
+  // see which links are currently inside a rail.
+  function ownedLinks(selector, includeRails){
     const links = [...document.querySelectorAll(selector)];
+    if (includeRails) return links;
     const rails = railRoots();
     if (!rails.length) return links;
     const kept = links.filter(a => !rails.some(r => r.contains(a)));
-    // Safety valves: never empty the library, and never trust a heading
-    // that would sweep away half of it (a page-level "Browse" banner).
-    return kept.length && kept.length >= links.length * 0.5 ? kept : links;
+    // Safety valve: never trust a heading that would sweep away half the
+    // page (a page-level banner, or a climb that overshot into the grid).
+    return kept.length >= links.length * 0.5 ? kept : links;
   }
 
   // Artwork shown on the store's own tile, used as a poster fallback.
@@ -361,9 +367,9 @@ const SLCollect = (() => {
   }
 
   // Google Play library page: one scan of visible anchors.
-  function google(){
+  function google(includeRails){
     const out = [];
-    ownedLinks('a[href*="/store/movies/details"],a[href*="/store/tv/show"]').forEach(a => {
+    ownedLinks('a[href*="/store/movies/details"],a[href*="/store/tv/show"]', includeRails).forEach(a => {
       const u = new URL(a.href, location.origin);
       let t = a.textContent.trim()
         .replace(/(\d\.\d)?star.*$/, '')
@@ -377,9 +383,9 @@ const SLCollect = (() => {
   }
 
   // Prime Video library page (movies or tv, per isTv).
-  function amazon(isTv){
+  function amazon(isTv, includeRails){
     const out = [];
-    ownedLinks('a[href*="/gp/video/detail/"]').forEach(a => {
+    ownedLinks('a[href*="/gp/video/detail/"]', includeRails).forEach(a => {
       const m = a.href.match(/\/gp\/video\/detail\/([A-Z0-9]+)/);
       if (!m) return;
       const t = (a.getAttribute('aria-label') || a.textContent).trim();
@@ -390,9 +396,9 @@ const SLCollect = (() => {
   }
 
   // Fandango at Home "My Movies" / "My TV" pages.
-  function fandango(isTv){
+  function fandango(isTv, includeRails){
     const out = [];
-    ownedLinks('a[href*="/content/browse/details/"]').forEach(a => {
+    ownedLinks('a[href*="/content/browse/details/"]', includeRails).forEach(a => {
       const m = (a.getAttribute('href') || '').match(/\/content\/browse\/details\/([^/]+)\/(\d+)/);
       if (!m) return;
       const img = a.querySelector('img');

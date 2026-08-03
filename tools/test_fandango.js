@@ -32,11 +32,23 @@ const tile = (id, title, img) => ({
 // Runs the harvester against a page whose tiles change over time.
 // `script` is a list of steps: each is the tile array the DOM holds at
 // that point. Steps advance on every timer tick the harvester awaits.
-async function run({steps, header = 'My Movies (202)', pathname = '/content/browse/mymovies'}){
+// `railAt` (optional): {step, tiles, heading} — tiles that belong to a rail
+// whose heading only appears from that step onward, reproducing the race
+// where a rail renders before the heading naming it.
+async function run({steps, header = 'My Movies (202)', pathname = '/content/browse/mymovies', railAt = null}){
   const messages = [];
   let step = 0;
   let observer = null;
-  const current = () => steps[Math.min(step, steps.length - 1)];
+  const railBox = {contains: x => (railAt ? railAt.tiles.includes(x) : false)};
+  const headingEl = {textContent: '', parentElement: {querySelector: () => ({}), parentElement: null}};
+  Object.defineProperty(headingEl, 'textContent', {
+    get: () => (railAt && step >= railAt.step) ? railAt.heading : '',
+  });
+  headingEl.parentElement = {querySelector: () => railAt.tiles[0], parentElement: null, contains: railBox.contains};
+  const current = () => {
+    const base = steps[Math.min(step, steps.length - 1)];
+    return railAt ? base.concat(railAt.tiles) : base;
+  };
 
   const sandbox = {
     console, JSON, Array, Object, String, Number, Math, Error, RegExp, Set, Map, Promise,
@@ -49,7 +61,11 @@ async function run({steps, header = 'My Movies (202)', pathname = '/content/brow
       readyState: 'complete',
       documentElement: {},
       body: {scrollHeight: 5000, get innerText(){ return header; }},
-      querySelectorAll: sel => /button|role=/.test(sel) ? [] : current(),
+      querySelectorAll: sel => {
+        if (/role=/.test(sel)) return railAt ? [headingEl] : []; // heading query
+        if (/button/.test(sel)) return [];
+        return current();
+      },
       addEventListener(){}, removeEventListener(){},
     },
     window: {innerHeight: 800, scrollBy(){}, scrollTo(){}, addEventListener: (n, f) => f()},
@@ -99,6 +115,20 @@ async function run({steps, header = 'My Movies (202)', pathname = '/content/brow
   r = await run({steps: [[tile(7, 'Some Show')]], header: 'My TV (1)', pathname: '/content/browse/mytv'});
   ok('marks titles from the TV page as TV', r.done.payload.items[0].tv === true);
   ok('reads the My TV count', r.done.expected === 1, String(r.done.expected));
+
+  // 5b. THE RACE: a rail's tiles render before the heading naming it, so
+  // an early scan banks them. They must be dropped by the time we report.
+  const rail = [tile(9001, 'Rail Movie A'), tile(9002, 'Rail Movie B')];
+  r = await run({
+    steps: [[], many.slice(0, 10), many.slice(0, 10)],
+    header: 'My Movies (10)',
+    // tiles exist from the start; the heading naming them arrives at step 1
+    railAt: {step: 1, tiles: rail, heading: 'Recommended for you'},
+  });
+  const titles = r.done.payload.items.map(i => i.title);
+  ok('drops rail titles banked before their heading appeared',
+     !titles.some(t => t.startsWith('Rail Movie')) && titles.length === 10,
+     titles.length + ' items: ' + titles.filter(t => t.startsWith('Rail')).join(','));
 
   // 6. Empty library terminates instead of hanging.
   r = await run({steps: [[]], header: 'My Movies (0)'});

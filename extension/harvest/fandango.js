@@ -85,5 +85,12 @@
     send({type: 'progress', found: found.size, expected});
   }
 
+  // A rail's tiles can render before its heading exists, so an early scan
+  // may have banked them as owned. Now that the page has settled, ask which
+  // links are currently inside a rail and drop those from what we collected.
+  const railed = new Set(SLCollect.fandango(isTv, true).map(i => i.key));
+  for (const i of SLCollect.fandango(isTv)) railed.delete(i.key);
+  for (const k of railed) found.delete(k);
+
   send({type: 'done', payload: {service: 'fandango', items: [...found.values()]}, expected});
 })();

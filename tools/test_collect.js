@@ -115,6 +115,25 @@ test('ownedLinks never returns empty', () => {
   assert.strictEqual(SLCollect.ownedLinks('a').length, 12);
 });
 
+test('ownedLinks matches "You may also like" phrasings', () => {
+  for (const h of ['You may also like', 'Customers also liked', 'Suggested for you']){
+    page([{heading: 'My Movies', n: 40}, {heading: h, n: 6, rail: true}]);
+    assert.strictEqual(SLCollect.ownedLinks('a').length, 40, h);
+  }
+});
+
+test('ownedLinks does NOT treat "Continue watching" as a rail', () => {
+  // It can sit over titles you own and are part-way through.
+  page([{heading: 'My Movies', n: 40}, {heading: 'Continue watching', n: 6}]);
+  assert.strictEqual(SLCollect.ownedLinks('a').length, 46);
+});
+
+test('ownedLinks(selector, true) returns rails too, for diffing', () => {
+  page([{heading: 'My Movies', n: 40}, {heading: 'Recommended for you', n: 6, rail: true}]);
+  assert.strictEqual(SLCollect.ownedLinks('a', true).length, 46);
+  assert.strictEqual(SLCollect.ownedLinks('a').length, 40);
+});
+
 global.document = {querySelectorAll: () => []};
 
 console.log('\n' + n + ' tests passed');
