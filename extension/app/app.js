@@ -374,6 +374,16 @@ const U = {
     U.dl('stream-list-backup.json', JSON.stringify(out, null, 1));
   },
   resetFlags(){ if(confirm('Clear all watched/watch-next flags?')){ flags={}; LS.set('flags',flags); render(); } },
+  // Empty the library. Also forgets which sync results were already
+  // merged, so the next sync (or reopening the app) refills it instead of
+  // leaving you empty because those results counted as "already merged".
+  clearLibrary(){
+    if (!confirm('Remove every title from your library? Watched/watch-next flags are kept.')) return;
+    library = []; sample = false;
+    LS.set('library', library); LS.set('sample', sample); LS.set('mergedAt', {});
+    rebuild(); render();
+    document.getElementById('mergeMsg').textContent = 'Library cleared — sync or import to refill it.';
+  },
   dl(name, text){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
@@ -387,6 +397,7 @@ document.getElementById('importBtn').onclick = () => document.getElementById('im
 document.getElementById('exportLibBtn').onclick = U.exportLib;
 document.getElementById('exportBackupBtn').onclick = U.exportBackup;
 document.getElementById('resetFlagsBtn').onclick = U.resetFlags;
+document.getElementById('clearLibBtn').onclick = U.clearLibrary;
 document.getElementById('tmdbKey').addEventListener('change', ev => { LS.set('tmdb', ev.target.value.trim()); posters={}; LS.set('posters',posters); });
 document.getElementById('importFile').addEventListener('change', ev => {
   const file = ev.target.files[0]; if (!file) return;
