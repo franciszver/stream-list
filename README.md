@@ -21,7 +21,9 @@ Until it's on the Chrome Web Store, install it unpacked (2 minutes, no build ste
 3. If a store shows **login needed**, sign in on the tab it left open, then sync again.
 4. That's it — titles merge into your library automatically as each store finishes. Nothing is ever deleted by a sync.
 
-Then browse: search (`/`), filter by store / movies / TV / "owned 2+ places", flag things watched or watch-next, toggle stats, grid or list. Posters load automatically (iTunes artwork; paste a free [TMDB API key](https://www.themoviedb.org/settings/api) in ⟳ Update for better matches). Dark mode follows your system.
+Then browse: search (`/`), filter by store / movies / TV / "owned 2+ places", flag things watched or watch-next, toggle stats, grid or list. Posters load automatically — iTunes artwork, then Wikipedia, then the store's own image, so no API key is needed (you can still paste a free [TMDB API key](https://www.themoviedb.org/settings/api) in ⟳ Update if you want its matches). Dark mode follows your system.
+
+**Something you don't own?** Store pages surround your library with "recommended" and wishlist rails; those are filtered out, but if one slips through, open the title and click **Remove**. **⟳ Update → Clear library** empties everything and lets you re-sync from scratch (your watched/watch-next flags are kept).
 
 **Your data never leaves your browser.** No account, no server, no analytics. The extension reads the store library pages you can already see — it never touches credentials.
 
