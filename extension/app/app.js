@@ -101,7 +101,8 @@ function visible(){
 // ---------- stats ----------
 function stats(){
   const el = document.getElementById('stats');
-  const per = {google:0, amazon:0, fandango:0};
+  const per = {};
+  for (const s in SVC) per[s] = 0;
   let movies=0, tv=0, multi=0, watched=0;
   for (const e of items){
     for (const s in e.services) per[s] = (per[s]||0)+1;
@@ -110,17 +111,17 @@ function stats(){
     if ((flags[e.id]||{}).w) watched++;
   }
   const total = items.length;
-  const perTotal = (per.google+per.amazon+per.fandango) || 1;
+  const perTotal = Object.values(per).reduce((a,b)=>a+b,0) || 1;
   const bar = Object.entries(per).map(([s,n]) =>
-    `<i style="width:${(n/perTotal*100).toFixed(1)}%;background:${SVC[s].color}" title="${SVC[s].name}: ${n}"></i>`).join('');
+    `<i style="width:${(n/perTotal*100).toFixed(1)}%;background:${SVC[s].color}" title="${esc(SVC[s].name)}: ${n}"></i>`).join('');
+  const svcTiles = Object.entries(per).map(([s,n]) =>
+    `<div class="tile"><div class="n">${n}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${SVC[s].color}"></span> ${esc(SVC[s].name)}</div></div>`).join('');
   el.innerHTML = `
     <div class="tile"><div class="n">${total}</div><div class="l">titles owned</div>
       <div class="bar">${bar}</div></div>
     <div class="tile"><div class="n">${movies} <span style="font-size:14px;color:var(--ink3)">/ ${tv}</span></div><div class="l">movies / TV</div></div>
     <div class="tile"><div class="n">${multi}</div><div class="l">owned on 2+ services</div></div>
-    <div class="tile"><div class="n">${per.google}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--google)"></span> Google Play</div></div>
-    <div class="tile"><div class="n">${per.amazon}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amazon)"></span> Prime Video</div></div>
-    <div class="tile"><div class="n">${per.fandango}</div><div class="l"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--fandango)"></span> Fandango</div></div>
+    ${svcTiles}
     <div class="tile"><div class="n">${watched}</div><div class="l">marked watched</div></div>`;
 }
 
@@ -321,7 +322,7 @@ const U = {
     alert('Unrecognized file — expected a Stream List backup, library.json, or bookmarklet export.');
   },
   exportLib(){
-    const out = {generated: new Date().toISOString().slice(0,10), sources: ['google','amazon','fandango'], items};
+    const out = {generated: new Date().toISOString().slice(0,10), sources: Object.keys(SVC), items};
     U.dl('library.json', JSON.stringify(out, null, 1));
   },
   exportBackup(){
