@@ -24,10 +24,17 @@
 
   let expected = expectedCount();
   let stale = 0, last = 0;
+  // The page is opened with ?minVisible=1000, which pre-renders up to 1000
+  // grid items — give that initial render a moment before first collect.
+  await new Promise(r => setTimeout(r, 1500));
   collect();
-  // Gradual scroll: one viewport at a time so the virtualizer has a
-  // chance to render every row; jumping to the bottom would skip items.
-  while ((expected === null || found.size < expected) && stale < 15){
+  // Fallback for anything still unrendered: gradual scroll. Drive the
+  // virtualizer by scrollIntoView on the last rendered tile (works even
+  // when the grid lives in an inner scroll container that window.scrollBy
+  // doesn't reach — the failure mode that used to stop at ~50 titles).
+  while ((expected === null || found.size < expected) && stale < 20){
+    const anchors = document.querySelectorAll('a[href*="/content/browse/details/"]');
+    if (anchors.length) anchors[anchors.length - 1].scrollIntoView({block: 'end'});
     window.scrollBy(0, Math.round(window.innerHeight * 0.8));
     await new Promise(r => setTimeout(r, 700));
     if (expected === null) expected = expectedCount();

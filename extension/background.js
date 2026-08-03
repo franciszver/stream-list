@@ -24,7 +24,9 @@ const SERVICES = {
   },
   fandango: {
     label: 'Fandango at Home',
-    pages: [{url: 'https://athome.fandango.com/content/browse/mymovies'}],
+    // minVisible pre-renders that many grid items up front (the grid is
+    // virtualized; scrolling alone proved unreliable — see harvest/fandango.js)
+    pages: [{url: 'https://athome.fandango.com/content/browse/mymovies?minVisible=1000'}],
     script: 'harvest/fandango.js',
     loginHosts: ['athome.fandango.com/login', 'auth.athome.fandango.com'],
     timeoutMs: 240000, // virtualized grid, auto-scroll can be slow
