@@ -57,7 +57,15 @@ if app_html.count('<script') != app_html.count('</script>'):
 if '<script' in app_js:
     fails.append('app.js: contains a script tag (extraction mis-split?)')
 
+# 7. Export button integrity: export buttons exist in markup and are wired.
+if 'id="exportBtn"' not in app_html or 'id="exportBtn"' not in index:
+    fails.append('exportBtn missing from app.html or index.html')
+if 'id="exportHtmlBtn"' not in app_html or 'id="exportHtmlBtn"' not in index:
+    fails.append('exportHtmlBtn missing from app.html or index.html')
+if 'exportHtml' not in app_js:
+    fails.append('app.js: exportHtml wiring missing')
+
 for f_ in fails:
     print('FAIL:', f_)
-print('6/6 groups OK' if not fails else f'{len(fails)} failure(s)')
+print('7/7 groups OK' if not fails else f'{len(fails)} failure(s)')
 sys.exit(1 if fails else 0)

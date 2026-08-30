@@ -27,6 +27,10 @@ Then browse: search (`/`), filter by store / movies / TV / "owned 2+ places", fl
 
 **Your data never leaves your browser.** No account, no server, no analytics. The extension reads the store library pages you can already see — it never touches credentials.
 
+## Mobile & on-the-go searching
+
+Click **⬇ Export** in the header toolbar to download `stream-list.html`. It is a self-contained, single-file webpage containing your entire library, cached posters, and watch flags with an instant search & filter UI. Save it to your phone (iCloud, Google Drive, OneDrive, AirDrop, or local files) and search what you own anywhere on iOS Safari or Android Chrome — 100% offline with zero server or app dependencies.
+
 ## Backup & moving between machines
 
 **⟳ Update → Export backup** writes `stream-list-backup.json` (library, flags, poster cache — never your TMDB key). Keep it in OneDrive/Google Drive/Dropbox, then **Import** it on the other machine.
@@ -52,6 +56,7 @@ tools/
   make_icons.py         ← regenerates extension/icons/
   merge.py              ← data/* scans → library.json (power-user pipeline)
   test_build.py         ← asserts the extension build stays CSP-safe
+  test_export.js        ← node tests for standalone HTML export
   test_merge.js         ← node tests for merge logic
   test_collect.js       ← node tests for the DOM collectors
   test_fandango.js      ← runs the Fandango harvester against a stubbed page

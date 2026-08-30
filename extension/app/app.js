@@ -374,13 +374,23 @@ const U = {
     }
     alert('Unrecognized file — expected a Stream List backup, library.json, or bookmarklet export.');
   },
+  exportHtml(){
+    const html = SLMerge.buildExportHtml({
+      generated: LS.get('gen', DATA.generated) || new Date().toISOString().slice(0, 10),
+      library,
+      flags,
+      posters,
+      meta,
+    });
+    U.dl('stream-list.html', html, 'text/html;charset=utf-8');
+  },
   exportLib(){
     const out = {generated: new Date().toISOString().slice(0,10), sources: Object.keys(SVC), items};
-    U.dl('library.json', JSON.stringify(out, null, 1));
+    U.dl('library.json', JSON.stringify(out, null, 1), 'application/json');
   },
   exportBackup(){
     const out = {streamList:1, exported: new Date().toISOString().slice(0,10), library, flags, posters, meta};
-    U.dl('stream-list-backup.json', JSON.stringify(out, null, 1));
+    U.dl('stream-list-backup.json', JSON.stringify(out, null, 1), 'application/json');
   },
   resetFlags(){ if(confirm('Clear all watched/watch-next flags?')){ flags={}; LS.set('flags',flags); render(); } },
   // Empty the library. Also forgets which sync results were already
@@ -393,12 +403,14 @@ const U = {
     rebuild(); render();
     document.getElementById('mergeMsg').textContent = 'Library cleared — sync or import to refill it.';
   },
-  dl(name, text){
+  dl(name, text, mime='application/json'){
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+    a.href = URL.createObjectURL(new Blob([text], {type: mime}));
     a.download = name; a.click();
   },
 };
+document.getElementById('exportBtn').onclick = U.exportHtml;
+document.getElementById('exportHtmlBtn').onclick = U.exportHtml;
 document.getElementById('updateBtn').onclick = U.open;
 document.getElementById('updClose').onclick = U.close;
 document.getElementById('mergeBtn').onclick = U.merge;
